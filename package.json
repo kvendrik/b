@@ -2,12 +2,12 @@
   "name": "language-playground",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "start": "ts-node",
     "test": "jest"
   },
-  "author": "",
+  "author": "Koen Vendrik <k.vendrik@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.3",
