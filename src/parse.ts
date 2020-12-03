@@ -4,6 +4,7 @@ export enum EventType {
   Operation = 'operation',
   Assignment = 'assignment',
   FunctionExpression = 'FunctionExpression',
+  FunctionCall = 'FunctionCall',
 }
 
 export enum Operator {
@@ -20,19 +21,24 @@ export enum Operator {
 }
 
 export interface GenericExpression {
-  type: EventType;
+  type: EventType.Assignment | EventType.Operation;
   operator: Operator;
   left: Token | Event;
-  right?: Token | Event;
+  right: Token | Event | null;
 }
 
 export interface FunctionExpression {
-  type: EventType;
-  parameters?: Token[];
-  body?: Event[];
+  type: EventType.FunctionExpression;
+  parameters: Token[] | null;
+  body: Event[] | null;
 }
 
-export type Event = GenericExpression | FunctionExpression;
+export interface FunctionCall {
+  type: EventType.FunctionCall;
+  parameters: Token[] | null;
+}
+
+export type Event = GenericExpression | FunctionExpression | FunctionCall;
 
 export default function parse(tokens: Token[]): Event[] {
   const events: Event[] = [];
@@ -56,8 +62,8 @@ export default function parse(tokens: Token[]): Event[] {
   return events;
 }
 
-function parseGroup(tokens: Token[]) {
-  let event: Event | undefined = undefined;
+function parseGroup(tokens: Token[]): Event | null {
+  let event: Event | null = null;
 
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
@@ -65,12 +71,15 @@ function parseGroup(tokens: Token[]) {
     const operationOpen = event?.type === EventType.Operation;
     const assignmentOpen = event?.type === EventType.Assignment;
     const functionOpen = event?.type === EventType.FunctionExpression;
+    const functionCallOpen = event?.type === EventType.FunctionCall;
 
     const prevToken = index === 0 ? null : tokens[index - 1];
 
     if (value === Operator.FunctionExpressionOpen) {
       event = {
         type: EventType.FunctionExpression,
+        parameters: null,
+        body: null,
       };
       continue;
     }
@@ -90,6 +99,32 @@ function parseGroup(tokens: Token[]) {
         const bodyEvents = parse(tokens.slice(index + 1, tokens.length - 1));
         expressionEvent.body = bodyEvents;
         return expressionEvent;
+      }
+
+      continue;
+    }
+
+    if (
+      value === Operator.PriorityGroupOpen &&
+      prevToken?.type === TokenType.Symbol
+    ) {
+      event = {
+        type: EventType.FunctionCall,
+        parameters: [],
+      };
+      continue;
+    }
+
+    if (functionCallOpen) {
+      const callEvent = (event as FunctionCall)!;
+
+      if (type === TokenType.Symbol) {
+        callEvent.parameters?.push({type, value});
+        continue;
+      }
+
+      if (value === Operator.PriorityGroupClose) {
+        return event;
       }
 
       continue;
@@ -123,6 +158,7 @@ function parseGroup(tokens: Token[]) {
         type: EventType.Operation,
         operator: getMathOperatorType(value) || ('' as Operator),
         left: prevToken,
+        right: null,
       };
       continue;
     }
@@ -132,12 +168,14 @@ function parseGroup(tokens: Token[]) {
     }
 
     if (value === Operator.Equals && prevToken) {
-      event = {
+      const valueTokens = tokens.slice(index + 1);
+      return {
         type: EventType.Assignment,
         operator: Operator.Equals,
         left: prevToken,
+        right:
+          valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
       };
-      continue;
     }
   }
 

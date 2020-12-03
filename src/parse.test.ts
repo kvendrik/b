@@ -136,6 +136,27 @@ describe('parse()', () => {
         },
       ]);
     });
+
+    it('understands function calls', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'sum'},
+          {type: TokenType.Special, value: '('},
+          {type: TokenType.Symbol, value: 'x'},
+          {type: TokenType.Special, value: ','},
+          {type: TokenType.Symbol, value: 'y'},
+          {type: TokenType.Special, value: ')'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.FunctionCall,
+          parameters: [
+            {type: TokenType.Symbol, value: 'x'},
+            {type: TokenType.Symbol, value: 'y'},
+          ],
+        },
+      ]);
+    });
   });
 
   describe('variable assignments', () => {
@@ -210,6 +231,46 @@ describe('parse()', () => {
           operator: Operator.Equals,
           left: {type: TokenType.Symbol, value: 'my_second_number'},
           right: {type: TokenType.Number, value: '162'},
+        },
+      ]);
+    });
+
+    it('allows for function assignments', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'sum'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.Special, value: '('},
+          {type: TokenType.Symbol, value: 'x'},
+          {type: TokenType.Special, value: ','},
+          {type: TokenType.Symbol, value: 'y'},
+          {type: TokenType.Special, value: ')'},
+          {type: TokenType.Symbol, value: 'x'},
+          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.Symbol, value: 'y'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Assignment,
+          operator: Operator.Equals,
+          left: {type: TokenType.Symbol, value: 'sum'},
+          right: {
+            type: EventType.FunctionExpression,
+            parameters: [
+              {type: TokenType.Symbol, value: 'x'},
+              {type: TokenType.Symbol, value: 'y'},
+            ],
+            body: [
+              {
+                type: EventType.Operation,
+                operator: Operator.Add,
+                left: {type: TokenType.Symbol, value: 'x'},
+                right: {type: TokenType.Symbol, value: 'y'},
+              },
+            ],
+          },
         },
       ]);
     });
