@@ -31,19 +31,19 @@ You can also use files by passing the file path into the CLI.
 ```
 multiply = {(x, y) x * y};
 calc = {(x)
-  base = 5;
-  multiply(base, x);
+  doubled = multiply(x, 2);
+  4 * doubled
 };
 
-result = calc(4);
-message = concat("Multiplied and doubled the value is", result);
+result = calc(5);
+message = concat("The result is", 40);
 
 log(message);
 ```
 
 ```
 ./b ./example-program.b
-Multiplied and doubled the value is 25
+The result is 40
 ```
 
 ## Why

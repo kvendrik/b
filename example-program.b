@@ -1,10 +1,10 @@
 multiply = {(x, y) x * y};
 calc = {(x)
-  base = 5;
-  multiply(base, x);
+  doubled = multiply(x, 2);
+  4 * doubled
 };
 
-result = calc(4);
-message = concat("Multiplied and doubled the value is", result);
+result = calc(5);
+message = concat("The result is", 40);
 
 log(message);
