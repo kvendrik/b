@@ -33,6 +33,7 @@ It's all written in JS which, depending on what it's used for, might not be what
 - [x] Variable assignments
 - [x] Function expressions & assignments
 - [x] Function calls
+- [ ] Line and character numbers in error messages
 - [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
 - [ ] Priority groups (e.g. `(2 + 2) * 2`)
 - [ ] Conditional logic
