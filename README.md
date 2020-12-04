@@ -1,12 +1,8 @@
 # B
 
-A very simple programming language that I created for practise purposes.
+👩‍💻 A very simple programming language. Created for practise purposes.
 
-```
-count = 2;
-multiply = {(x, y) x * y};
-multiply(count, 2);
-```
+![](demo.gif)
 
 ## Interactive Mode
 
