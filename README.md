@@ -36,7 +36,7 @@ calc = {(x)
 };
 
 result = calc(5);
-message = concat("The result is", 40);
+message = concat("The result is", result);
 
 log(message);
 ```
