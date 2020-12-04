@@ -57,5 +57,12 @@ describe('Interpreter()', () => {
       const result = interpreter.evaluate(ast);
       expect(result).toBe('4');
     });
+
+    it('understands symbols in calls', () => {
+      const ast = toAST(`count = 2; sum = {(x, y) x * y}; sum(2, count)`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toBe('4');
+    });
   });
 });

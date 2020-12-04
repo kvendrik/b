@@ -123,7 +123,7 @@ export default class Interpreter {
         ? undefined
         : [...parameters.entries()].reduce(
             (current, [index, {value}]) =>
-              current.set(value, callParameters[index]),
+              current.set(value, this.resolveExpression(callParameters[index])),
             new Map<string, StoredExpression>(),
           );
 
