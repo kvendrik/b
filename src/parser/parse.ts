@@ -1,11 +1,12 @@
 import {Token, Type as TokenType} from './tokenize';
 
 export enum EventType {
-  Operation = 'Operation',
+  MathOperation = 'MathOperation',
   Assignment = 'Assignment',
   TokenExpression = 'TokenExpression',
   FunctionExpression = 'FunctionExpression',
   FunctionCall = 'FunctionCall',
+  Test = 'Test',
 }
 
 export enum Operator {
@@ -13,7 +14,12 @@ export enum Operator {
   Multiply = '*',
   Subtract = '-',
   Divide = '/',
-  Equals = '=',
+  AssignmentSplit = '=',
+  BiggerThan = '>',
+  SmallerThan = '<',
+  Equals = '==',
+  Negative = '!',
+  NegativeEquals = '!=',
   EndOfLine = ';',
   PriorityGroupOpen = '(',
   PriorityGroupClose = ')',
@@ -23,7 +29,7 @@ export enum Operator {
 }
 
 export interface GenericExpression {
-  type: EventType.Assignment | EventType.Operation;
+  type: EventType.Assignment | EventType.MathOperation | EventType.Test;
   operator: Operator;
   left: Token | Event;
   right: Token | Event | null;
@@ -84,7 +90,7 @@ export default function parse(tokens: Token[]): Event[] {
 function parseGroup(tokens: Token[]): Event | null {
   let event: Event | null = null;
 
-  if (tokens.length === 1 && tokens[0].type === TokenType.Symbol) {
+  if (tokens.length === 1) {
     return {
       type: EventType.TokenExpression,
       token: tokens[0],
@@ -94,7 +100,7 @@ function parseGroup(tokens: Token[]): Event | null {
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
 
-    const operationOpen = event?.type === EventType.Operation;
+    const operationOpen = event?.type === EventType.MathOperation;
     const assignmentOpen = event?.type === EventType.Assignment;
     const functionOpen = event?.type === EventType.FunctionExpression;
     const functionCallOpen = event?.type === EventType.FunctionCall;
@@ -157,19 +163,7 @@ function parseGroup(tokens: Token[]): Event | null {
 
     const genericExpressionEvent = (event as GenericExpression)!;
 
-    if (assignmentOpen && event) {
-      const nextTokens = tokens.slice(index);
-
-      if (nextTokens.length === 1) {
-        genericExpressionEvent.right = nextTokens[0];
-        return genericExpressionEvent;
-      }
-
-      genericExpressionEvent.right = parseGroup(tokens.slice(index));
-      return genericExpressionEvent;
-    }
-
-    if (type === TokenType.Operation && prevToken) {
+    if (type === TokenType.MathOperation && prevToken) {
       if (operationOpen && event) {
         genericExpressionEvent.right = parseGroup([
           prevToken,
@@ -180,7 +174,7 @@ function parseGroup(tokens: Token[]): Event | null {
       }
 
       event = {
-        type: EventType.Operation,
+        type: EventType.MathOperation,
         operator: getMathOperatorType(value) || ('' as Operator),
         left: prevToken,
         right: null,
@@ -190,12 +184,67 @@ function parseGroup(tokens: Token[]): Event | null {
 
     if (isEndOfInput && operationOpen && event) {
       genericExpressionEvent.right = {type, value};
+      return genericExpressionEvent;
     }
 
-    if (value === Operator.Equals && prevToken) {
-      const valueTokens = tokens.slice(index + 1);
+    const testEvent =
+      prevToken && resolveTestEvent({type, value}, prevToken, index, tokens);
+    if (testEvent) return testEvent;
+
+    const assignmentEvent =
+      prevToken &&
+      resolveAssignmentEvent({type, value}, prevToken, index, tokens);
+    if (assignmentEvent) return assignmentEvent;
+  }
+
+  return event;
+}
+
+function resolveAssignmentEvent(
+  {value}: Token,
+  prevToken: Token,
+  index: number,
+  tokens: Token[],
+): Event | void {
+  if (value === Operator.AssignmentSplit && prevToken) {
+    let valueTokens = tokens.slice(index + 1);
+
+    return {
+      type: EventType.Assignment,
+      operator: Operator.AssignmentSplit,
+      left: prevToken,
+      right:
+        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+    };
+  }
+}
+
+function resolveTestEvent(
+  {value}: Token,
+  prevToken: Token,
+  index: number,
+  tokens: Token[],
+): Event | void {
+  if (value === Operator.Negative) {
+    const valueTokens = tokens.slice(index + 2);
+    return {
+      type: EventType.Test,
+      operator: Operator.NegativeEquals,
+      left: prevToken,
+      right:
+        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+    };
+  }
+
+  if (value === Operator.AssignmentSplit) {
+    let valueTokens = tokens.slice(index + 1);
+    if (
+      valueTokens[0].type === TokenType.Special &&
+      `${value}${valueTokens[0].value}` === Operator.Equals
+    ) {
+      valueTokens = tokens.slice(index + 2);
       return {
-        type: EventType.Assignment,
+        type: EventType.Test,
         operator: Operator.Equals,
         left: prevToken,
         right:
@@ -204,7 +253,20 @@ function parseGroup(tokens: Token[]): Event | null {
     }
   }
 
-  return event;
+  if (value === Operator.BiggerThan || value === Operator.SmallerThan) {
+    const valueTokens = tokens.slice(index + 1);
+
+    return {
+      type: EventType.Test,
+      operator:
+        value === Operator.BiggerThan
+          ? Operator.BiggerThan
+          : Operator.SmallerThan,
+      left: prevToken,
+      right:
+        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+    };
+  }
 }
 
 function getMathOperatorType(value: string) {

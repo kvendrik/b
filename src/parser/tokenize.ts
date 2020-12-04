@@ -1,9 +1,10 @@
 export enum Type {
-  Operation = 'operation',
-  Symbol = 'symbol',
-  String = 'string',
-  Number = 'number',
-  Special = 'special',
+  MathOperation = 'MathOperation',
+  Symbol = 'Symbol',
+  String = 'String',
+  Number = 'Number',
+  Boolean = 'Boolean',
+  Special = 'Special',
 }
 
 export interface Token {
@@ -65,7 +66,9 @@ export default function tokenize(input: string): Token[] {
     }
 
     if (
-      ['=', '(', ')', '?', ':', '{', '}', ',', ';'].includes(character) &&
+      ['=', '(', ')', '?', ':', '{', '}', ',', ';', '<', '>'].includes(
+        character,
+      ) &&
       !stringState.open
     ) {
       closeSymbolRead();
@@ -78,7 +81,7 @@ export default function tokenize(input: string): Token[] {
 
     if (['+', '-', '*', '/'].includes(character)) {
       tokens.push({
-        type: Type.Operation,
+        type: Type.MathOperation,
         value: character,
       });
       continue;
@@ -129,10 +132,13 @@ export default function tokenize(input: string): Token[] {
 
   function closeSymbolRead() {
     if (symbolState.open) {
+      const finalValue = symbolState.currentValue;
       symbolState.open = false;
       tokens.push({
-        type: Type.Symbol,
-        value: symbolState.currentValue,
+        type: ['true', 'false'].includes(finalValue)
+          ? Type.Boolean
+          : Type.Symbol,
+        value: finalValue,
       });
     }
   }

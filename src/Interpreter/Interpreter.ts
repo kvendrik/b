@@ -50,7 +50,7 @@ export default class Interpreter {
         case EventType.Assignment:
           this.handleAssignment(event);
           break;
-        case EventType.Operation:
+        case EventType.MathOperation:
           return this.handleOperation(event);
         case EventType.TokenExpression:
           return this.handleTokenExpression(event);

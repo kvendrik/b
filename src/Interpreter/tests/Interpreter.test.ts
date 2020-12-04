@@ -164,12 +164,31 @@ describe('Interpreter()', () => {
         calc = {()
           double = {() 2 * 2};
           double();
-        }
+        };
         calc();
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({type: TokenType.Number, value: '4'});
+    });
+
+    it('understands returning literals', () => {
+      const ast = toAST(`
+        say = {() "Hello!"};
+        say();
+      `);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
+    });
+  });
+
+  describe('literals', () => {
+    it('understands returning literals', () => {
+      const ast = toAST(`"Hello!"`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
     });
   });
 

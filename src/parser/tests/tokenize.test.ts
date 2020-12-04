@@ -1,26 +1,26 @@
-import tokenize from '../tokenize';
+import tokenize, {Type} from '../tokenize';
 
 describe('tokenize()', () => {
   describe('operations', () => {
     it('accepts basic operations', () => {
       const input = '2 + 4';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '+'},
-        {type: 'number', value: '4'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Number, value: '4'},
       ]);
     });
 
     it('accepts advanced operations', () => {
       const input = '2 / 2 * 42 + 728';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '/'},
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '*'},
-        {type: 'number', value: '42'},
-        {type: 'operation', value: '+'},
-        {type: 'number', value: '728'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '/'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '*'},
+        {type: Type.Number, value: '42'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Number, value: '728'},
       ]);
     });
   });
@@ -29,9 +29,9 @@ describe('tokenize()', () => {
     it('accepts big numbers', () => {
       const input = '2 + 452';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '+'},
-        {type: 'number', value: '452'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Number, value: '452'},
       ]);
     });
   });
@@ -40,27 +40,27 @@ describe('tokenize()', () => {
     it('accepts strings', () => {
       const input = '2 + "hello"';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '+'},
-        {type: 'string', value: 'hello'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.String, value: 'hello'},
       ]);
     });
 
     it('accepts quotes within strings', () => {
       const input = '2 + "he\'llo"';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '+'},
-        {type: 'string', value: "he'llo"},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.String, value: "he'llo"},
       ]);
     });
 
     it('accepts spaces within strings', () => {
       const input = '2 + "hello how are you?"';
       expect(tokenize(input)).toEqual([
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '+'},
-        {type: 'string', value: 'hello how are you?'},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.String, value: 'hello how are you?'},
       ]);
     });
 
@@ -70,58 +70,71 @@ describe('tokenize()', () => {
     });
   });
 
+  describe('booleans', () => {
+    it('accepts booleans', () => {
+      const input = '2 + true + false';
+      expect(tokenize(input)).toEqual([
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Boolean, value: 'true'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Boolean, value: 'false'},
+      ]);
+    });
+  });
+
   describe('symbols', () => {
     it('accepts symbols at end of input', () => {
       const input = '"hello" + heyhey';
       expect(tokenize(input)).toEqual([
-        {type: 'string', value: 'hello'},
-        {type: 'operation', value: '+'},
-        {type: 'symbol', value: 'heyhey'},
+        {type: Type.String, value: 'hello'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Symbol, value: 'heyhey'},
       ]);
     });
 
     it('accepts symbols in middle of input', () => {
       const input = '"hello" + heyhey / 2';
       expect(tokenize(input)).toEqual([
-        {type: 'string', value: 'hello'},
-        {type: 'operation', value: '+'},
-        {type: 'symbol', value: 'heyhey'},
-        {type: 'operation', value: '/'},
-        {type: 'number', value: '2'},
+        {type: Type.String, value: 'hello'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Symbol, value: 'heyhey'},
+        {type: Type.MathOperation, value: '/'},
+        {type: Type.Number, value: '2'},
       ]);
     });
 
     it('accepts capital letters', () => {
       const input = '"hello" + HeyHey / 2';
       expect(tokenize(input)).toEqual([
-        {type: 'string', value: 'hello'},
-        {type: 'operation', value: '+'},
-        {type: 'symbol', value: 'HeyHey'},
-        {type: 'operation', value: '/'},
-        {type: 'number', value: '2'},
+        {type: Type.String, value: 'hello'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Symbol, value: 'HeyHey'},
+        {type: Type.MathOperation, value: '/'},
+        {type: Type.Number, value: '2'},
       ]);
     });
 
     it('accepts underscores', () => {
       const input = '"hello" + Hey_Hey_ / 2';
       expect(tokenize(input)).toEqual([
-        {type: 'string', value: 'hello'},
-        {type: 'operation', value: '+'},
-        {type: 'symbol', value: 'Hey_Hey_'},
-        {type: 'operation', value: '/'},
-        {type: 'number', value: '2'},
+        {type: Type.String, value: 'hello'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Symbol, value: 'Hey_Hey_'},
+        {type: Type.MathOperation, value: '/'},
+        {type: Type.Number, value: '2'},
       ]);
     });
 
     it('recognizes method names', () => {
       const input = 'print( x + 2 )';
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'print'},
-        {type: 'special', value: '('},
-        {type: 'symbol', value: 'x'},
-        {type: 'operation', value: '+'},
-        {type: 'number', value: '2'},
-        {type: 'special', value: ')'},
+        {type: Type.Symbol, value: 'print'},
+        {type: Type.Special, value: '('},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.MathOperation, value: '+'},
+        {type: Type.Number, value: '2'},
+        {type: Type.Special, value: ')'},
       ]);
     });
   });
@@ -130,64 +143,64 @@ describe('tokenize()', () => {
     it('accepts equal signs', () => {
       const input = 'magic_two = 2';
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'magic_two'},
-        {type: 'special', value: '='},
-        {type: 'number', value: '2'},
+        {type: Type.Symbol, value: 'magic_two'},
+        {type: Type.Special, value: '='},
+        {type: Type.Number, value: '2'},
       ]);
     });
 
     it('accepts parentheses', () => {
       const input = '(2 * 2) / 4';
       expect(tokenize(input)).toEqual([
-        {type: 'special', value: '('},
-        {type: 'number', value: '2'},
-        {type: 'operation', value: '*'},
-        {type: 'number', value: '2'},
-        {type: 'special', value: ')'},
-        {type: 'operation', value: '/'},
-        {type: 'number', value: '4'},
+        {type: Type.Special, value: '('},
+        {type: Type.Number, value: '2'},
+        {type: Type.MathOperation, value: '*'},
+        {type: Type.Number, value: '2'},
+        {type: Type.Special, value: ')'},
+        {type: Type.MathOperation, value: '/'},
+        {type: Type.Number, value: '4'},
       ]);
     });
 
     it('accepts question marks and colons', () => {
       const input = 'true ? 24 : 42';
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'true'},
-        {type: 'special', value: '?'},
-        {type: 'number', value: '24'},
-        {type: 'special', value: ':'},
-        {type: 'number', value: '42'},
+        {type: Type.Boolean, value: 'true'},
+        {type: Type.Special, value: '?'},
+        {type: Type.Number, value: '24'},
+        {type: Type.Special, value: ':'},
+        {type: Type.Number, value: '42'},
       ]);
     });
 
     it('accepts function assignments using brackets', () => {
       const input = 'multiply = {(x, y) x * y};';
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'multiply'},
-        {type: 'special', value: '='},
-        {type: 'special', value: '{'},
-        {type: 'special', value: '('},
-        {type: 'symbol', value: 'x'},
-        {type: 'special', value: ','},
-        {type: 'symbol', value: 'y'},
-        {type: 'special', value: ')'},
-        {type: 'symbol', value: 'x'},
-        {type: 'operation', value: '*'},
-        {type: 'symbol', value: 'y'},
-        {type: 'special', value: '}'},
-        {type: 'special', value: ';'},
+        {type: Type.Symbol, value: 'multiply'},
+        {type: Type.Special, value: '='},
+        {type: Type.Special, value: '{'},
+        {type: Type.Special, value: '('},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.Special, value: ','},
+        {type: Type.Symbol, value: 'y'},
+        {type: Type.Special, value: ')'},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.MathOperation, value: '*'},
+        {type: Type.Symbol, value: 'y'},
+        {type: Type.Special, value: '}'},
+        {type: Type.Special, value: ';'},
       ]);
     });
 
     it('accepts function calls', () => {
       const input = 'multiply(x, y)';
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'multiply'},
-        {type: 'special', value: '('},
-        {type: 'symbol', value: 'x'},
-        {type: 'special', value: ','},
-        {type: 'symbol', value: 'y'},
-        {type: 'special', value: ')'},
+        {type: Type.Symbol, value: 'multiply'},
+        {type: Type.Special, value: '('},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.Special, value: ','},
+        {type: Type.Symbol, value: 'y'},
+        {type: Type.Special, value: ')'},
       ]);
     });
   });
@@ -203,37 +216,37 @@ describe('tokenize()', () => {
         calc(2);
       `;
       expect(tokenize(input)).toEqual([
-        {type: 'symbol', value: 'base'},
-        {type: 'special', value: '='},
-        {type: 'number', value: '5'},
-        {type: 'special', value: ';'},
-        {type: 'symbol', value: 'calc'},
-        {type: 'special', value: '='},
-        {type: 'special', value: '{'},
-        {type: 'special', value: '('},
-        {type: 'symbol', value: 'x'},
-        {type: 'special', value: ')'},
-        {type: 'symbol', value: 'double'},
-        {type: 'special', value: '='},
-        {type: 'special', value: '{'},
-        {type: 'special', value: '('},
-        {type: 'special', value: ')'},
-        {type: 'symbol', value: 'x'},
-        {type: 'operation', value: '*'},
-        {type: 'symbol', value: 'base'},
-        {type: 'special', value: '}'},
-        {type: 'special', value: ';'},
-        {type: 'symbol', value: 'double'},
-        {type: 'special', value: '('},
-        {type: 'special', value: ')'},
-        {type: 'special', value: ';'},
-        {type: 'special', value: '}'},
-        {type: 'special', value: ';'},
-        {type: 'symbol', value: 'calc'},
-        {type: 'special', value: '('},
-        {type: 'number', value: '2'},
-        {type: 'special', value: ')'},
-        {type: 'special', value: ';'},
+        {type: Type.Symbol, value: 'base'},
+        {type: Type.Special, value: '='},
+        {type: Type.Number, value: '5'},
+        {type: Type.Special, value: ';'},
+        {type: Type.Symbol, value: 'calc'},
+        {type: Type.Special, value: '='},
+        {type: Type.Special, value: '{'},
+        {type: Type.Special, value: '('},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.Special, value: ')'},
+        {type: Type.Symbol, value: 'double'},
+        {type: Type.Special, value: '='},
+        {type: Type.Special, value: '{'},
+        {type: Type.Special, value: '('},
+        {type: Type.Special, value: ')'},
+        {type: Type.Symbol, value: 'x'},
+        {type: Type.MathOperation, value: '*'},
+        {type: Type.Symbol, value: 'base'},
+        {type: Type.Special, value: '}'},
+        {type: Type.Special, value: ';'},
+        {type: Type.Symbol, value: 'double'},
+        {type: Type.Special, value: '('},
+        {type: Type.Special, value: ')'},
+        {type: Type.Special, value: ';'},
+        {type: Type.Special, value: '}'},
+        {type: Type.Special, value: ';'},
+        {type: Type.Symbol, value: 'calc'},
+        {type: Type.Special, value: '('},
+        {type: Type.Number, value: '2'},
+        {type: Type.Special, value: ')'},
+        {type: Type.Special, value: ';'},
       ]);
     });
   });

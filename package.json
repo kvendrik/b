@@ -1,7 +1,7 @@
 {
-  "name": "language-playground",
+  "name": "b",
   "version": "1.0.0-alpha",
-  "description": "",
+  "description": "A very simple programming language",
   "main": "build/index.js",
   "scripts": {
     "start": "ts-node",

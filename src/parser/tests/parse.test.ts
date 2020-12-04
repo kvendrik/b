@@ -2,17 +2,109 @@ import {Type as TokenType, Token} from '../tokenize';
 import parse, {EventType, Operator} from '../parse';
 
 describe('parse()', () => {
+  describe('literals', () => {
+    it('understands programs that only return a string literal', () => {
+      expect(parse([{type: TokenType.String, value: 'Hello!'}])).toEqual([
+        {
+          type: EventType.TokenExpression,
+          token: {type: TokenType.String, value: 'Hello!'},
+        },
+      ]);
+    });
+
+    it('understands programs that only return a number literal', () => {
+      expect(parse([{type: TokenType.Number, value: '120'}])).toEqual([
+        {
+          type: EventType.TokenExpression,
+          token: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+  });
+
+  describe('tests', () => {
+    it('understands basic equality evaluations', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Number, value: '120'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.Equals,
+          left: {type: TokenType.Symbol, value: 'count'},
+          right: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+
+    it('understands negative equality evaluations', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: '!'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Number, value: '120'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.NegativeEquals,
+          left: {type: TokenType.Symbol, value: 'count'},
+          right: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+
+    it('understands bigger than evaluations', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: Operator.BiggerThan},
+          {type: TokenType.Number, value: '120'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.BiggerThan,
+          left: {type: TokenType.Symbol, value: 'count'},
+          right: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+
+    it('understands smaller than evaluations', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: Operator.SmallerThan},
+          {type: TokenType.Number, value: '120'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.SmallerThan,
+          left: {type: TokenType.Symbol, value: 'count'},
+          right: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+  });
+
   describe('operations', () => {
     it('understands basic calculations', () => {
       expect(
         parse([
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Number, value: '8'},
         ]),
       ).toEqual([
         {
-          type: EventType.Operation,
+          type: EventType.MathOperation,
           operator: Operator.Add,
           left: {type: TokenType.Number, value: '2'},
           right: {type: TokenType.Number, value: '8'},
@@ -24,12 +116,12 @@ describe('parse()', () => {
       expect(
         parse([
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '*'},
+          {type: TokenType.MathOperation, value: '*'},
           {type: TokenType.Number, value: '4'},
         ]),
       ).toEqual([
         {
-          type: EventType.Operation,
+          type: EventType.MathOperation,
           operator: Operator.Multiply,
           left: {type: TokenType.Number, value: '2'},
           right: {type: TokenType.Number, value: '4'},
@@ -41,12 +133,12 @@ describe('parse()', () => {
       expect(
         parse([
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '*'},
+          {type: TokenType.MathOperation, value: '*'},
           {type: TokenType.Symbol, value: 'x'},
         ]),
       ).toEqual([
         {
-          type: EventType.Operation,
+          type: EventType.MathOperation,
           operator: Operator.Multiply,
           left: {type: TokenType.Number, value: '2'},
           right: {type: TokenType.Symbol, value: 'x'},
@@ -58,12 +150,12 @@ describe('parse()', () => {
       expect(
         parse([
           {type: TokenType.Symbol, value: 'x'},
-          {type: TokenType.Operation, value: '*'},
+          {type: TokenType.MathOperation, value: '*'},
           {type: TokenType.Symbol, value: 'y'},
         ]),
       ).toEqual([
         {
-          type: EventType.Operation,
+          type: EventType.MathOperation,
           operator: Operator.Multiply,
           left: {type: TokenType.Symbol, value: 'x'},
           right: {type: TokenType.Symbol, value: 'y'},
@@ -75,24 +167,24 @@ describe('parse()', () => {
       expect(
         parse([
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '*'},
+          {type: TokenType.MathOperation, value: '*'},
           {type: TokenType.Number, value: '4'},
-          {type: TokenType.Operation, value: '/'},
+          {type: TokenType.MathOperation, value: '/'},
           {type: TokenType.Number, value: '2'},
         ]),
       ).toEqual([
         {
-          type: EventType.Operation,
+          type: EventType.MathOperation,
           operator: Operator.Add,
           left: {type: TokenType.Number, value: '2'},
           right: {
-            type: EventType.Operation,
+            type: EventType.MathOperation,
             operator: Operator.Multiply,
             left: {type: TokenType.Number, value: '2'},
             right: {
-              type: EventType.Operation,
+              type: EventType.MathOperation,
               operator: Operator.Divide,
               left: {type: TokenType.Number, value: '4'},
               right: {type: TokenType.Number, value: '2'},
@@ -114,7 +206,7 @@ describe('parse()', () => {
           {type: TokenType.Symbol, value: 'y'},
           {type: TokenType.Special, value: ')'},
           {type: TokenType.Symbol, value: 'x'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Symbol, value: 'y'},
           {type: TokenType.Special, value: '}'},
         ]),
@@ -127,10 +219,33 @@ describe('parse()', () => {
           ],
           body: [
             {
-              type: EventType.Operation,
+              type: EventType.MathOperation,
               operator: Operator.Add,
               left: {type: TokenType.Symbol, value: 'x'},
               right: {type: TokenType.Symbol, value: 'y'},
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands function expressions that return a string', () => {
+      expect(
+        parse([
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.Special, value: '('},
+          {type: TokenType.Special, value: ')'},
+          {type: TokenType.String, value: 'Hello!'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.FunctionExpression,
+          parameters: [],
+          body: [
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.String, value: 'Hello!'},
             },
           ],
         },
@@ -196,7 +311,7 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'count'},
           right: {
             type: EventType.FunctionCall,
@@ -250,7 +365,7 @@ describe('parse()', () => {
           {type: TokenType.Number, value: '120'},
           {type: TokenType.Special, value: ';'},
           {type: TokenType.Symbol, value: 'x'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Symbol, value: 'count'},
           {type: TokenType.Special, value: '}'},
         ]),
@@ -261,12 +376,12 @@ describe('parse()', () => {
           body: [
             {
               type: EventType.Assignment,
-              operator: Operator.Equals,
+              operator: Operator.AssignmentSplit,
               left: {type: TokenType.Symbol, value: 'count'},
               right: {type: TokenType.Number, value: '120'},
             },
             {
-              type: EventType.Operation,
+              type: EventType.MathOperation,
               operator: Operator.Add,
               left: {type: TokenType.Symbol, value: 'x'},
               right: {type: TokenType.Symbol, value: 'count'},
@@ -282,7 +397,7 @@ describe('parse()', () => {
           ...getMockFunction('add', [
             ...getMockFunction('calc', [
               {type: TokenType.Number, value: '2'},
-              {type: TokenType.Operation, value: '*'},
+              {type: TokenType.MathOperation, value: '*'},
               {type: TokenType.Number, value: '2'},
             ]),
             {type: TokenType.Symbol, value: 'calc'},
@@ -298,7 +413,7 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {
             type: TokenType.Symbol,
             value: 'add',
@@ -309,7 +424,7 @@ describe('parse()', () => {
             body: [
               {
                 type: EventType.Assignment,
-                operator: Operator.Equals,
+                operator: Operator.AssignmentSplit,
                 left: {
                   type: TokenType.Symbol,
                   value: 'calc',
@@ -319,7 +434,7 @@ describe('parse()', () => {
                   parameters: [],
                   body: [
                     {
-                      type: EventType.Operation,
+                      type: EventType.MathOperation,
                       operator: Operator.Multiply,
                       left: {
                         type: TokenType.Number,
@@ -374,7 +489,7 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'my_number'},
           right: {type: TokenType.Number, value: '8'},
         },
@@ -387,16 +502,16 @@ describe('parse()', () => {
           {type: TokenType.Symbol, value: 'my_number'},
           {type: TokenType.Special, value: '='},
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Number, value: '8'},
         ]),
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'my_number'},
           right: {
-            type: EventType.Operation,
+            type: EventType.MathOperation,
             operator: Operator.Add,
             left: {type: TokenType.Number, value: '2'},
             right: {type: TokenType.Number, value: '8'},
@@ -417,7 +532,7 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'my_number'},
           right: {type: TokenType.Number, value: '8'},
         },
@@ -434,7 +549,7 @@ describe('parse()', () => {
           {type: TokenType.Symbol, value: 'my_number'},
           {type: TokenType.Special, value: '='},
           {type: TokenType.Number, value: '2'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Number, value: '8'},
           {type: TokenType.Special, value: ';'},
           {type: TokenType.Symbol, value: 'my_second_number'},
@@ -444,10 +559,10 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'my_number'},
           right: {
-            type: EventType.Operation,
+            type: EventType.MathOperation,
             operator: Operator.Add,
             left: {type: TokenType.Number, value: '2'},
             right: {type: TokenType.Number, value: '8'},
@@ -455,7 +570,7 @@ describe('parse()', () => {
         },
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'my_second_number'},
           right: {type: TokenType.Number, value: '162'},
         },
@@ -474,14 +589,14 @@ describe('parse()', () => {
           {type: TokenType.Symbol, value: 'y'},
           {type: TokenType.Special, value: ')'},
           {type: TokenType.Symbol, value: 'x'},
-          {type: TokenType.Operation, value: '+'},
+          {type: TokenType.MathOperation, value: '+'},
           {type: TokenType.Symbol, value: 'y'},
           {type: TokenType.Special, value: '}'},
         ]),
       ).toEqual([
         {
           type: EventType.Assignment,
-          operator: Operator.Equals,
+          operator: Operator.AssignmentSplit,
           left: {type: TokenType.Symbol, value: 'sum'},
           right: {
             type: EventType.FunctionExpression,
@@ -491,7 +606,7 @@ describe('parse()', () => {
             ],
             body: [
               {
-                type: EventType.Operation,
+                type: EventType.MathOperation,
                 operator: Operator.Add,
                 left: {type: TokenType.Symbol, value: 'x'},
                 right: {type: TokenType.Symbol, value: 'y'},

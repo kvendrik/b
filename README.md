@@ -61,10 +61,12 @@ It's all written in JS which, depending on what it's used for, might not be what
 - [x] Function calls
 - [x] Multiline support
 - [x] Scoped variables
+- [ ] Conditional logic
 - [ ] Using function calls directly as function arguments
+- [ ] Using function expressions as function arguments
 - [ ] Scoped functions (not supported by parser yet as it closes functions at the first occurance of `}`)
 - [ ] Line and character numbers in error messages
 - [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
 - [ ] Priority groups (e.g. `(2 + 2) * 2`)
-- [ ] Conditional logic
 - [ ] Loops
+- [ ] Arrays
