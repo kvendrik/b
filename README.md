@@ -8,12 +8,15 @@ multiply = {(x, y) x * y};
 multiply(count, 2);
 ```
 
-## Interpreter
+## Interactive Mode
 
-The interpreter ships with an interactive mode that can be used to play around with the language:
+The interpreter CLI ships with an interactive mode that can be used to play around with the language:
 
 ```
+git clone git@github.com:kvendrik/b.git && cd b && yarn && yarn build
+
 ./b
+v1.0.0-alpha
 >>> count = 2;
 >>> multiply = {(x, y) x * y};
 >>> multiply(count, 2);
@@ -23,4 +26,18 @@ The interpreter ships with an interactive mode that can be used to play around w
 
 ## Why
 
-I created this for practise purposes. I wanted to learn more about the inner workings of lexers, parsers, and interpreters, and felt like a good way to do so was by writing my own. It's all written in JS which might not be the most performant way of doing this. In a scenario where this would be used in the real would it could easily be rewritten in a language that is more suitable for it's purpose.
+I created this for practise purposes. I wanted to learn more about the inner workings of lexers, parsers, and interpreters. It seems like a good way to do so was by writing my own.
+
+It's all written in JS which, depending on what it's used for, might not be what I would write this in if used in a production scenario, but it works well for practise purposes.
+
+## Features
+
+- [x] Basic math operations
+- [x] String & Number literals
+- [x] Variable assignments
+- [x] Function expressions & assignments
+- [x] Function calls
+- [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
+- [ ] Priority groups (e.g. `(2 + 2) * 2`)
+- [ ] Conditional logic
+- [ ] Loops

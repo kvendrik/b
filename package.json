@@ -1,10 +1,12 @@
 {
   "name": "language-playground",
-  "version": "1.0.0",
+  "version": "1.0.0-alpha",
   "description": "",
-  "main": "dist/index.js",
+  "main": "build/index.js",
   "scripts": {
     "start": "ts-node",
+    "build": "yarn clean && tsc",
+    "clean": "rm -rf ./build",
     "test": "jest"
   },
   "author": "Koen Vendrik <k.vendrik@gmail.com>",

@@ -1,8 +1,9 @@
 import {Token, Type as TokenType} from './tokenize';
 
 export enum EventType {
-  Operation = 'operation',
-  Assignment = 'assignment',
+  Operation = 'Operation',
+  Assignment = 'Assignment',
+  TokenExpression = 'TokenExpression',
   FunctionExpression = 'FunctionExpression',
   FunctionCall = 'FunctionCall',
 }
@@ -18,6 +19,7 @@ export enum Operator {
   PriorityGroupClose = ')',
   FunctionExpressionOpen = '{',
   FunctionExpressionClose = '}',
+  ListDivider = ',',
 }
 
 export interface GenericExpression {
@@ -25,6 +27,11 @@ export interface GenericExpression {
   operator: Operator;
   left: Token | Event;
   right: Token | Event | null;
+}
+
+export interface TokenExpression {
+  type: EventType.TokenExpression;
+  token: Token;
 }
 
 export interface FunctionExpression {
@@ -35,10 +42,15 @@ export interface FunctionExpression {
 
 export interface FunctionCall {
   type: EventType.FunctionCall;
+  symbol: string;
   parameters: Token[] | null;
 }
 
-export type Event = GenericExpression | FunctionExpression | FunctionCall;
+export type Event =
+  | GenericExpression
+  | TokenExpression
+  | FunctionExpression
+  | FunctionCall;
 
 export default function parse(tokens: Token[]): Event[] {
   const events: Event[] = [];
@@ -64,6 +76,13 @@ export default function parse(tokens: Token[]): Event[] {
 
 function parseGroup(tokens: Token[]): Event | null {
   let event: Event | null = null;
+
+  if (tokens.length === 1 && tokens[0].type === TokenType.Symbol) {
+    return {
+      type: EventType.TokenExpression,
+      token: tokens[0],
+    } as TokenExpression;
+  }
 
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
@@ -110,6 +129,7 @@ function parseGroup(tokens: Token[]): Event | null {
     ) {
       event = {
         type: EventType.FunctionCall,
+        symbol: prevToken!.value,
         parameters: [],
       };
       continue;
@@ -118,15 +138,13 @@ function parseGroup(tokens: Token[]): Event | null {
     if (functionCallOpen) {
       const callEvent = (event as FunctionCall)!;
 
-      if (type === TokenType.Symbol) {
-        callEvent.parameters?.push({type, value});
-        continue;
-      }
+      if (value === Operator.ListDivider) continue;
 
       if (value === Operator.PriorityGroupClose) {
         return event;
       }
 
+      callEvent.parameters?.push({type, value});
       continue;
     }
 

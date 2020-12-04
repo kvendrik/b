@@ -4,6 +4,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "strict": true,
-    "downlevelIteration": true
+    "downlevelIteration": true,
+    "outDir": "./build"
   }
 }

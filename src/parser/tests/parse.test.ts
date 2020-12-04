@@ -1,5 +1,5 @@
-import {Type as TokenType} from './tokenize';
-import parse, {EventType, Operator} from './parse';
+import {Type as TokenType} from '../tokenize';
+import parse, {EventType, Operator} from '../parse';
 
 describe('parse()', () => {
   describe('operations', () => {
@@ -150,9 +150,32 @@ describe('parse()', () => {
       ).toEqual([
         {
           type: EventType.FunctionCall,
+          symbol: 'sum',
           parameters: [
             {type: TokenType.Symbol, value: 'x'},
             {type: TokenType.Symbol, value: 'y'},
+          ],
+        },
+      ]);
+    });
+
+    it('understands function calls with literals', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'sum'},
+          {type: TokenType.Special, value: '('},
+          {type: TokenType.Number, value: '2'},
+          {type: TokenType.Special, value: ','},
+          {type: TokenType.Number, value: '4'},
+          {type: TokenType.Special, value: ')'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.FunctionCall,
+          symbol: 'sum',
+          parameters: [
+            {type: TokenType.Number, value: '2'},
+            {type: TokenType.Number, value: '4'},
           ],
         },
       ]);
@@ -197,6 +220,29 @@ describe('parse()', () => {
             left: {type: TokenType.Number, value: '2'},
             right: {type: TokenType.Number, value: '8'},
           },
+        },
+      ]);
+    });
+
+    it('understands basic variable checks', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'my_number'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Number, value: '8'},
+          {type: TokenType.Special, value: ';'},
+          {type: TokenType.Symbol, value: 'my_number'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Assignment,
+          operator: Operator.Equals,
+          left: {type: TokenType.Symbol, value: 'my_number'},
+          right: {type: TokenType.Number, value: '8'},
+        },
+        {
+          type: EventType.TokenExpression,
+          token: {type: TokenType.Symbol, value: 'my_number'},
         },
       ]);
     });

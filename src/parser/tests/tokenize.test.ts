@@ -1,4 +1,4 @@
-import tokenize from './tokenize';
+import tokenize from '../tokenize';
 
 describe('tokenize()', () => {
   describe('operations', () => {
@@ -176,6 +176,18 @@ describe('tokenize()', () => {
         {type: 'symbol', value: 'y'},
         {type: 'special', value: '}'},
         {type: 'special', value: ';'},
+      ]);
+    });
+
+    it('accepts function calls', () => {
+      const input = 'multiply(x, y)';
+      expect(tokenize(input)).toEqual([
+        {type: 'symbol', value: 'multiply'},
+        {type: 'special', value: '('},
+        {type: 'symbol', value: 'x'},
+        {type: 'special', value: ','},
+        {type: 'symbol', value: 'y'},
+        {type: 'special', value: ')'},
       ]);
     });
   });
