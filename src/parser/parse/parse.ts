@@ -1,4 +1,4 @@
-import {Token, Type as TokenType} from './tokenize';
+import {Token, Type as TokenType} from '../tokenize';
 
 export enum EventType {
   MathOperation = 'MathOperation',
@@ -7,6 +7,7 @@ export enum EventType {
   FunctionExpression = 'FunctionExpression',
   FunctionCall = 'FunctionCall',
   Test = 'Test',
+  Condition = 'Condition',
 }
 
 export enum Operator {
@@ -26,6 +27,8 @@ export enum Operator {
   FunctionExpressionOpen = '{',
   FunctionExpressionClose = '}',
   ListDivider = ',',
+  ConditionTestEnd = '?',
+  ConditionTestSplit = ':',
 }
 
 export interface GenericExpression {
@@ -33,6 +36,13 @@ export interface GenericExpression {
   operator: Operator;
   left: Token | Event;
   right: Token | Event | null;
+}
+
+export interface ConditionalExpression {
+  type: EventType.Condition;
+  test: GenericExpression & {type: EventType.Test};
+  consequent: Token | Event;
+  alternate: Token | Event | null;
 }
 
 export interface TokenExpression {
@@ -56,7 +66,8 @@ export type Event =
   | GenericExpression
   | TokenExpression
   | FunctionExpression
-  | FunctionCall;
+  | FunctionCall
+  | ConditionalExpression;
 
 export default function parse(tokens: Token[]): Event[] {
   const events: Event[] = [];
@@ -88,8 +99,6 @@ export default function parse(tokens: Token[]): Event[] {
 }
 
 function parseGroup(tokens: Token[]): Event | null {
-  let event: Event | null = null;
-
   if (tokens.length === 1) {
     return {
       type: EventType.TokenExpression,
@@ -97,107 +106,165 @@ function parseGroup(tokens: Token[]): Event | null {
     } as TokenExpression;
   }
 
+  let currentReader:
+    | MathOperationReader
+    | FunctionCallReader
+    | FunctionExpressionReader
+    | null = null;
+
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
-
-    const operationOpen = event?.type === EventType.MathOperation;
-    const assignmentOpen = event?.type === EventType.Assignment;
-    const functionOpen = event?.type === EventType.FunctionExpression;
-    const functionCallOpen = event?.type === EventType.FunctionCall;
-
     const prevToken = index === 0 ? null : tokens[index - 1];
 
-    if (value === Operator.FunctionExpressionOpen) {
-      event = {
-        type: EventType.FunctionExpression,
-        parameters: null,
-        body: null,
-      };
-      continue;
-    }
-
-    if (functionOpen) {
-      const expressionEvent = (event as FunctionExpression)!;
-
-      if (value === Operator.PriorityGroupOpen) {
-        expressionEvent.parameters = [];
-      }
-
-      if (type === TokenType.Symbol && expressionEvent.parameters) {
-        expressionEvent.parameters?.push({type, value});
-      }
-
-      if (value === Operator.PriorityGroupClose) {
-        const bodyEvents = parse(tokens.slice(index + 1, tokens.length - 1));
-        expressionEvent.body = bodyEvents;
-        return expressionEvent;
-      }
-
-      continue;
-    }
-
-    if (
-      value === Operator.PriorityGroupOpen &&
-      prevToken?.type === TokenType.Symbol
-    ) {
-      event = {
-        type: EventType.FunctionCall,
-        symbol: prevToken!.value,
-        parameters: [],
-      };
-      continue;
-    }
-
-    if (functionCallOpen) {
-      const callEvent = (event as FunctionCall)!;
-
-      if (value === Operator.ListDivider) continue;
-
-      if (value === Operator.PriorityGroupClose) {
+    if (currentReader !== null && prevToken) {
+      const event = currentReader.read(
+        {type, value},
+        prevToken,
+        index,
+        isEndOfInput,
+      );
+      if (event) {
         return event;
+      } else {
+        continue;
       }
+    }
 
-      callEvent.parameters?.push({type, value});
+    if (FunctionExpressionReader.isFunctionExpressionStart({type, value})) {
+      currentReader = new FunctionExpressionReader(tokens);
       continue;
     }
 
-    const genericExpressionEvent = (event as GenericExpression)!;
-
-    if (type === TokenType.MathOperation && prevToken) {
-      if (operationOpen && event) {
-        genericExpressionEvent.right = parseGroup([
-          prevToken,
-          {type, value},
-          ...tokens.slice(index + 1),
-        ]);
-        return genericExpressionEvent;
-      }
-
-      event = {
-        type: EventType.MathOperation,
-        operator: getMathOperatorType(value) || ('' as Operator),
-        left: prevToken,
-        right: null,
-      };
+    if (prevToken == null) {
       continue;
     }
 
-    if (isEndOfInput && operationOpen && event) {
-      genericExpressionEvent.right = {type, value};
-      return genericExpressionEvent;
+    if (FunctionCallReader.isFunctionCallStart({type, value}, prevToken)) {
+      currentReader = new FunctionCallReader(prevToken);
+      continue;
     }
 
-    const testEvent =
-      prevToken && resolveTestEvent({type, value}, prevToken, index, tokens);
+    if (MathOperationReader.isMathOperationStart({type, value})) {
+      currentReader = new MathOperationReader({type, value}, prevToken, tokens);
+      continue;
+    }
+
+    const testEvent = resolveTestEvent({type, value}, prevToken, index, tokens);
     if (testEvent) return testEvent;
 
-    const assignmentEvent =
-      prevToken &&
-      resolveAssignmentEvent({type, value}, prevToken, index, tokens);
+    const assignmentEvent = resolveAssignmentEvent(
+      {type, value},
+      prevToken,
+      index,
+      tokens,
+    );
     if (assignmentEvent) return assignmentEvent;
   }
 
-  return event;
+  return null;
+}
+
+class FunctionExpressionReader {
+  private event: FunctionExpression;
+
+  static isFunctionExpressionStart({value}: Token) {
+    return value === Operator.FunctionExpressionOpen;
+  }
+
+  constructor(private tokens: Token[]) {
+    this.event = {
+      type: EventType.FunctionExpression,
+      parameters: null,
+      body: null,
+    };
+  }
+
+  read({type, value}: Token, _: Token, index: number) {
+    if (value === Operator.PriorityGroupOpen) {
+      this.event.parameters = [];
+    }
+
+    if (type === TokenType.Symbol && this.event.parameters) {
+      this.event.parameters?.push({type, value});
+    }
+
+    if (value === Operator.PriorityGroupClose) {
+      const bodyEvents = parse(
+        this.tokens.slice(index + 1, this.tokens.length - 1),
+      );
+      this.event.body = bodyEvents;
+      return this.event;
+    }
+  }
+}
+
+class FunctionCallReader {
+  private event: FunctionCall;
+
+  static isFunctionCallStart({value}: Token, prevToken: Token) {
+    return (
+      value === Operator.PriorityGroupOpen &&
+      prevToken.type === TokenType.Symbol
+    );
+  }
+
+  constructor(prevToken: Token) {
+    this.event = {
+      type: EventType.FunctionCall,
+      symbol: prevToken!.value,
+      parameters: [],
+    };
+  }
+
+  read({type, value}: Token) {
+    if (value === Operator.ListDivider) return;
+
+    if (value === Operator.PriorityGroupClose) {
+      return this.event;
+    }
+
+    this.event.parameters?.push({type, value});
+  }
+}
+
+class MathOperationReader {
+  private event: GenericExpression;
+
+  static isMathOperationStart({type}: Token) {
+    return type === TokenType.MathOperation;
+  }
+
+  constructor({value}: Token, prevToken: Token, private tokens: Token[]) {
+    this.event = {
+      type: EventType.MathOperation,
+      operator: getMathOperatorType(value) || ('' as Operator),
+      left: prevToken,
+      right: null,
+    };
+  }
+
+  read(
+    {type, value}: Token,
+    prevToken: Token,
+    index: number,
+    isEndOfInput: boolean,
+  ) {
+    if (this.event == null) return;
+
+    if (type === TokenType.MathOperation) {
+      this.event.right = parseGroup([
+        prevToken,
+        {type, value},
+        ...this.tokens.slice(index + 1),
+      ]);
+      return this.event;
+    }
+
+    if (isEndOfInput) {
+      this.event.right = {type, value};
+      return this.event;
+    }
+  }
 }
 
 function resolveAssignmentEvent(
@@ -271,13 +338,13 @@ function resolveTestEvent(
 
 function getMathOperatorType(value: string) {
   switch (value) {
-    case '+':
+    case Operator.Add:
       return Operator.Add;
-    case '*':
+    case Operator.Multiply:
       return Operator.Multiply;
-    case '-':
+    case Operator.Subtract:
       return Operator.Subtract;
-    case '/':
+    case Operator.Divide:
       return Operator.Divide;
   }
   return null;

@@ -1,4 +1,4 @@
-import {Type as TokenType, Token} from '../tokenize';
+import {Type as TokenType, Token} from '../../tokenize';
 import parse, {EventType, Operator} from '../parse';
 
 describe('parse()', () => {
@@ -89,6 +89,34 @@ describe('parse()', () => {
           operator: Operator.SmallerThan,
           left: {type: TokenType.Symbol, value: 'count'},
           right: {type: TokenType.Number, value: '120'},
+        },
+      ]);
+    });
+  });
+
+  describe('conditions', () => {
+    it.skip('understands basic conditional logic', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: Operator.SmallerThan},
+          {type: TokenType.Number, value: '120'},
+          {type: TokenType.Special, value: Operator.ConditionTestEnd},
+          {type: TokenType.Number, value: '240'},
+          {type: TokenType.Special, value: Operator.ConditionTestSplit},
+          {type: TokenType.Number, value: '440'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Condition,
+          test: {
+            type: EventType.Test,
+            operator: Operator.SmallerThan,
+            left: {type: TokenType.Symbol, value: 'count'},
+            right: {type: TokenType.Number, value: '120'},
+          },
+          consequent: {type: TokenType.Number, value: '240'},
+          alternate: {type: TokenType.Number, value: '440'},
         },
       ]);
     });
