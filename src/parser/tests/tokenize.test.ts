@@ -191,4 +191,50 @@ describe('tokenize()', () => {
       ]);
     });
   });
+
+  describe('whitespace', () => {
+    it('removes whitespace', () => {
+      const input = `
+        base = 5;
+        calc = {(x)
+          double = {() x * base};
+          double();
+        };
+        calc(2);
+      `;
+      expect(tokenize(input)).toEqual([
+        {type: 'symbol', value: 'base'},
+        {type: 'special', value: '='},
+        {type: 'number', value: '5'},
+        {type: 'special', value: ';'},
+        {type: 'symbol', value: 'calc'},
+        {type: 'special', value: '='},
+        {type: 'special', value: '{'},
+        {type: 'special', value: '('},
+        {type: 'symbol', value: 'x'},
+        {type: 'special', value: ')'},
+        {type: 'symbol', value: 'double'},
+        {type: 'special', value: '='},
+        {type: 'special', value: '{'},
+        {type: 'special', value: '('},
+        {type: 'special', value: ')'},
+        {type: 'symbol', value: 'x'},
+        {type: 'operation', value: '*'},
+        {type: 'symbol', value: 'base'},
+        {type: 'special', value: '}'},
+        {type: 'special', value: ';'},
+        {type: 'symbol', value: 'double'},
+        {type: 'special', value: '('},
+        {type: 'special', value: ')'},
+        {type: 'special', value: ';'},
+        {type: 'special', value: '}'},
+        {type: 'special', value: ';'},
+        {type: 'symbol', value: 'calc'},
+        {type: 'special', value: '('},
+        {type: 'number', value: '2'},
+        {type: 'special', value: ')'},
+        {type: 'special', value: ';'},
+      ]);
+    });
+  });
 });

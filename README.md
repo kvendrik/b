@@ -4,7 +4,9 @@
 
 ![](demo.gif)
 
-## Interactive Mode
+## Interpreter
+
+### Interactive Mode
 
 The interpreter CLI ships with an interactive mode that can be used to play around with the language:
 
@@ -20,6 +22,30 @@ v1.0.0-alpha
 >>> exit
 ```
 
+### Using files
+
+You can also use files by passing the file path into the CLI.
+
+`example-program.b`
+
+```
+multiply = {(x, y) x * y};
+calc = {(x)
+  base = 5;
+  multiply(base, x);
+};
+
+result = calc(4);
+message = concat("Multiplied and doubled the value is", result);
+
+log(message);
+```
+
+```
+./b ./example-program.b
+Multiplied and doubled the value is 25
+```
+
 ## Why
 
 I created this for practise purposes. I wanted to learn more about the inner workings of lexers, parsers, and interpreters. It seems like a good way to do so was by writing my own.
@@ -33,6 +59,10 @@ It's all written in JS which, depending on what it's used for, might not be what
 - [x] Variable assignments
 - [x] Function expressions & assignments
 - [x] Function calls
+- [x] Multiline support
+- [x] Scoped variables
+- [ ] Using function calls directly as function arguments
+- [ ] Scoped functions (not supported by parser yet as it closes functions at the first occurance of `}`)
 - [ ] Line and character numbers in error messages
 - [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
 - [ ] Priority groups (e.g. `(2 + 2) * 2`)

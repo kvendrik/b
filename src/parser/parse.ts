@@ -54,12 +54,19 @@ export type Event =
 
 export default function parse(tokens: Token[]): Event[] {
   const events: Event[] = [];
+  let currentlyInNestedBlock = false;
 
   const lines = tokens.reduce(
     (currentLines, token) => {
-      if (token.value === Operator.EndOfLine) {
+      if (token.value === Operator.FunctionExpressionOpen)
+        currentlyInNestedBlock = true;
+      if (token.value === Operator.FunctionExpressionClose)
+        currentlyInNestedBlock = false;
+
+      if (token.value === Operator.EndOfLine && !currentlyInNestedBlock) {
         return [...currentLines, []];
       }
+
       currentLines[currentLines.length - 1].push(token);
       return currentLines;
     },

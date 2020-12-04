@@ -16,6 +16,26 @@ export enum ObfuscatedValue {
 
 type StoredExpression = Token | FunctionExpression;
 
+const BUILT_INS: {
+  [name: string]: (tokens: Token[]) => Token | void;
+} = {
+  log: (tokens: Token[]) => console.log(...tokens.map(({value}) => value)),
+  concat(tokens: Token[]) {
+    if (
+      tokens.some(
+        ({type}) => type !== TokenType.String && type !== TokenType.Number,
+      )
+    ) {
+      throw new Error('concat() can only be used with strings');
+    }
+    const resultString = tokens.reduce(
+      (current, {value}) => (current !== '' ? `${current} ${value}` : value),
+      '',
+    );
+    return {type: TokenType.String, value: resultString};
+  },
+};
+
 export default class Interpreter {
   constructor(
     private context: Map<string, StoredExpression> = new Map<
@@ -24,7 +44,7 @@ export default class Interpreter {
     >(),
   ) {}
 
-  evaluate(events: Event[]): string | void {
+  evaluate(events: Event[]): Token | void {
     for (const event of events) {
       switch (event.type) {
         case EventType.Assignment:
@@ -53,11 +73,15 @@ export default class Interpreter {
     // ];
 
     if (this.isToken(left) && this.isToken(right)) {
-      return this.resolveOperation(operator, left, right).toString();
+      return this.resolveOperation(operator, left, right);
     }
   }
 
-  private resolveOperation(operator: Operator, left: Token, right: Token) {
+  private resolveOperation(
+    operator: Operator,
+    left: Token,
+    right: Token,
+  ): Token {
     const leftExpression = this.resolveExpression(left);
     const rightExpression = this.resolveExpression(right);
 
@@ -70,21 +94,46 @@ export default class Interpreter {
       throw new Error('Can only execute math operations on numbers.');
     }
 
+    let outcome = null;
+
     switch (operator) {
       case Operator.Multiply:
-        return Number(leftExpression.value) * Number(rightExpression.value);
+        outcome = Number(leftExpression.value) * Number(rightExpression.value);
+        break;
       case Operator.Divide:
-        return Number(leftExpression.value) / Number(rightExpression.value);
+        outcome = Number(leftExpression.value) / Number(rightExpression.value);
+        break;
       case Operator.Add:
-        return Number(leftExpression.value) + Number(rightExpression.value);
+        outcome = Number(leftExpression.value) + Number(rightExpression.value);
+        break;
       case Operator.Subtract:
-        return Number(leftExpression.value) + Number(rightExpression.value);
+        outcome = Number(leftExpression.value) + Number(rightExpression.value);
+        break;
       default:
         throw new Error(`Unknown operator ${operator}`);
     }
+
+    return {type: TokenType.Number, value: outcome.toString()};
   }
 
-  private handleFunctionCall({symbol, parameters}: FunctionCall) {
+  private handleFunctionCall({symbol, parameters}: FunctionCall): Token | void {
+    const builtIn = BUILT_INS[symbol];
+
+    if (builtIn) {
+      return builtIn(
+        parameters == null
+          ? []
+          : parameters.map((token) => {
+              if (!this.isToken(token)) {
+                throw new Error(
+                  'Function calls are currently not supported as function arguments.',
+                );
+              }
+              return this.resolveExpression(token) as Token;
+            }),
+      );
+    }
+
     const functionExpression = this.context.get(symbol);
 
     if (functionExpression === undefined) {
@@ -102,7 +151,7 @@ export default class Interpreter {
     symbol: string,
     {parameters, body}: FunctionExpression,
     callParameters: Token[],
-  ) {
+  ): Token | void {
     if (parameters && parameters.length > callParameters.length) {
       throw new Error(`Call to ${symbol} is missing parameters.`);
     }
@@ -115,16 +164,16 @@ export default class Interpreter {
     }
 
     if (body == null) {
-      return '';
+      return;
     }
 
     const initialContext =
       parameters == null
-        ? undefined
+        ? this.context
         : [...parameters.entries()].reduce(
             (current, [index, {value}]) =>
               current.set(value, this.resolveExpression(callParameters[index])),
-            new Map<string, StoredExpression>(),
+            this.context,
           );
 
     const subInterpreter = new Interpreter(initialContext);
@@ -135,10 +184,10 @@ export default class Interpreter {
     const expression = this.resolveExpression(token);
 
     if (this.isToken(expression)) {
-      return expression.value;
+      return expression;
     }
 
-    return ObfuscatedValue.Function;
+    return {type: TokenType.String, value: ObfuscatedValue.Function};
   }
 
   private resolveExpression({type, value}: Token) {
@@ -174,6 +223,14 @@ export default class Interpreter {
     switch (right.type) {
       case EventType.FunctionExpression:
         this.context.set(left.value, right);
+        break;
+      case EventType.FunctionCall:
+        const value = this.handleFunctionCall(right);
+        if (value == null)
+          throw new Error(
+            `Call to ${right.symbol} resulted in void which cannot be assigned to ${left.value}.`,
+          );
+        this.context.set(left.value, value);
         break;
       default:
         throw new Error(`Right side of ${left.value} is empty.`);
