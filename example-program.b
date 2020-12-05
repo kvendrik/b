@@ -1,10 +1,10 @@
-multiply = {(x, y) x * y};
-calc = {(x)
-  doubled = multiply(x, 2);
-  4 * doubled
-};
+iteration = 0;
 
-result = calc(5);
-message = concat("The result is", result);
+while(iteration < 100, {()
+  iteration = iteration + 1;
 
-log(message);
+  if(iteration == 50, {() log("Halfway!")});
+
+  message = concat("Currently at: ", iteration);
+  log(message);
+});

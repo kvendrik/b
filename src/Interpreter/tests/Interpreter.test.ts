@@ -1,5 +1,5 @@
 import Interpreter, {ObfuscatedValue} from '../Interpreter';
-import {toAST, TokenType} from '../../parser';
+import {toAST, TokenType, BooleanValue} from '../../parser';
 
 describe('Interpreter()', () => {
   describe('operations', () => {
@@ -23,6 +23,13 @@ describe('Interpreter()', () => {
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({type: TokenType.Number, value: '10'});
+    });
+
+    it('understands remainder operations', () => {
+      const ast = toAST(`10 % 5`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.Number, value: '0'});
     });
   });
 
@@ -88,6 +95,16 @@ describe('Interpreter()', () => {
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({type: TokenType.Number, value: '8'});
+    });
+
+    it('understands tests as arguments', () => {
+      const ast = toAST(`add = {(x) x}; add(2 > 1)`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.Boolean,
+        value: BooleanValue.True,
+      });
     });
 
     it('keeps previously defined variables accessible', () => {
@@ -159,7 +176,7 @@ describe('Interpreter()', () => {
       expect(result).toEqual({type: TokenType.Number, value: '8'});
     });
 
-    it.skip('supports nested functions', () => {
+    it('supports nested functions', () => {
       const ast = toAST(`
         calc = {()
           double = {() 2 * 2};
@@ -181,6 +198,16 @@ describe('Interpreter()', () => {
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
     });
+
+    it('understands breaks', () => {
+      const ast = toAST(`
+        say = {() break; "Hello!"};
+        say();
+      `);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toBeUndefined();
+    });
   });
 
   describe('literals', () => {
@@ -192,16 +219,49 @@ describe('Interpreter()', () => {
     });
   });
 
-  describe('builtIns', () => {
-    describe('concat()', () => {
-      it('concatenates multiple strings', () => {
-        const ast = toAST('concat("Hello", "there!");');
-        const interpreter = new Interpreter();
-        const result = interpreter.evaluate(ast);
-        expect(result).toEqual({type: TokenType.String, value: 'Hello there!'});
+  describe('tests', () => {
+    it('understands bigger than tests', () => {
+      const ast = toAST(`2 > 1`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.Boolean,
+        value: BooleanValue.True,
       });
     });
 
+    it('understands smaller than tests', () => {
+      const ast = toAST(`count = 2; count < 10`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.Boolean,
+        value: BooleanValue.True,
+      });
+    });
+
+    it('understands equality checks', () => {
+      const ast = toAST(`"Hello!" == "ello!"`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.Boolean,
+        value: BooleanValue.False,
+      });
+    });
+
+    it('understands negative equality checks', () => {
+      const ast = toAST(`"Hello!" != "ello!"`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.Boolean,
+        value: BooleanValue.True,
+      });
+    });
+  });
+
+  describe('builtIns', () => {
     describe('log()', () => {
       it('calls console.log', () => {
         const logSpy = jest.spyOn(console, 'log');
@@ -212,6 +272,74 @@ describe('Interpreter()', () => {
         expect(logSpy).toHaveBeenCalledWith('Hello', 'there!');
         expect(result).toBe(undefined);
         logSpy.mockRestore();
+      });
+    });
+
+    describe('if()', () => {
+      it('returns given function return value if test passes', () => {
+        const ast = toAST('if(2 > 1, {() "Hello!"});');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
+      });
+
+      it('doesn’t return given value if test doesn’t pass', () => {
+        const ast = toAST('if(1 > 2, {() "Hello!"});');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toBeUndefined();
+      });
+
+      it('callback doesn’t execute if condition isn’t true', () => {
+        const logSpy = jest.spyOn(console, 'log');
+        logSpy.mockReset();
+
+        const ast = toAST('if(1 > 2, {() log()});');
+
+        const interpreter = new Interpreter();
+        interpreter.evaluate(ast);
+
+        expect(logSpy).not.toHaveBeenCalled();
+        logSpy.mockRestore();
+      });
+    });
+
+    describe('while()', () => {
+      it('loops as long as condition is true', () => {
+        const logSpy = jest.spyOn(console, 'log');
+        logSpy.mockReset();
+
+        const ast = toAST('i = 0; while(i < 10, {() i = i + 1; log(i)});');
+
+        const interpreter = new Interpreter();
+        interpreter.evaluate(ast);
+
+        expect(logSpy).toHaveBeenCalledTimes(10);
+        logSpy.mockRestore();
+      });
+
+      it('understands if statements', () => {
+        const logSpy = jest.spyOn(console, 'log');
+        logSpy.mockReset();
+
+        const ast = toAST(
+          'i = 0; while(i < 10, {() i = i + 1; if(i == 5, log("Done!"))});',
+        );
+
+        const interpreter = new Interpreter();
+        interpreter.evaluate(ast);
+
+        expect(logSpy).toHaveBeenCalledWith('Done!');
+        logSpy.mockRestore();
+      });
+    });
+
+    describe('concat()', () => {
+      it('concatenates multiple strings', () => {
+        const ast = toAST('concat("Hello", "there!");');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({type: TokenType.String, value: 'Hello there!'});
       });
     });
   });

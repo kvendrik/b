@@ -59,6 +59,24 @@ describe('parse()', () => {
       ]);
     });
 
+    it('understands negative equality evaluations on strings', () => {
+      expect(
+        parse([
+          {type: TokenType.String, value: 'Hello!'},
+          {type: TokenType.Special, value: '!'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.String, value: 'Hey'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.NegativeEquals,
+          left: {type: TokenType.String, value: 'Hello!'},
+          right: {type: TokenType.String, value: 'Hey'},
+        },
+      ]);
+    });
+
     it('understands bigger than evaluations', () => {
       expect(
         parse([
@@ -94,34 +112,6 @@ describe('parse()', () => {
     });
   });
 
-  describe('conditions', () => {
-    it.skip('understands basic conditional logic', () => {
-      expect(
-        parse([
-          {type: TokenType.Symbol, value: 'count'},
-          {type: TokenType.Special, value: Operator.SmallerThan},
-          {type: TokenType.Number, value: '120'},
-          {type: TokenType.Special, value: Operator.ConditionTestEnd},
-          {type: TokenType.Number, value: '240'},
-          {type: TokenType.Special, value: Operator.ConditionTestSplit},
-          {type: TokenType.Number, value: '440'},
-        ]),
-      ).toEqual([
-        {
-          type: EventType.Condition,
-          test: {
-            type: EventType.Test,
-            operator: Operator.SmallerThan,
-            left: {type: TokenType.Symbol, value: 'count'},
-            right: {type: TokenType.Number, value: '120'},
-          },
-          consequent: {type: TokenType.Number, value: '240'},
-          alternate: {type: TokenType.Number, value: '440'},
-        },
-      ]);
-    });
-  });
-
   describe('operations', () => {
     it('understands basic calculations', () => {
       expect(
@@ -136,6 +126,23 @@ describe('parse()', () => {
           operator: Operator.Add,
           left: {type: TokenType.Number, value: '2'},
           right: {type: TokenType.Number, value: '8'},
+        },
+      ]);
+    });
+
+    it('understands remainders', () => {
+      expect(
+        parse([
+          {type: TokenType.Number, value: '10'},
+          {type: TokenType.MathOperation, value: '%'},
+          {type: TokenType.Number, value: '2'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.MathOperation,
+          operator: Operator.Remainder,
+          left: {type: TokenType.Number, value: '10'},
+          right: {type: TokenType.Number, value: '2'},
         },
       ]);
     });
@@ -295,8 +302,14 @@ describe('parse()', () => {
           type: EventType.FunctionCall,
           symbol: 'sum',
           parameters: [
-            {type: TokenType.Symbol, value: 'x'},
-            {type: TokenType.Symbol, value: 'y'},
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Symbol, value: 'x'},
+            },
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Symbol, value: 'y'},
+            },
           ],
         },
       ]);
@@ -317,8 +330,50 @@ describe('parse()', () => {
           type: EventType.FunctionCall,
           symbol: 'sum',
           parameters: [
-            {type: TokenType.Number, value: '2'},
-            {type: TokenType.Number, value: '4'},
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '2'},
+            },
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '4'},
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands function calls with function expressions', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'sum'},
+          {type: TokenType.Special, value: '('},
+          {type: TokenType.Number, value: '2'},
+          {type: TokenType.Special, value: ','},
+          ...getMockFunctionExpression([
+            {type: TokenType.Number, value: 'Hello!'},
+          ]),
+          {type: TokenType.Special, value: ')'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.FunctionCall,
+          symbol: 'sum',
+          parameters: [
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '2'},
+            },
+            {
+              type: EventType.FunctionExpression,
+              parameters: [],
+              body: [
+                {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.Number, value: 'Hello!'},
+                },
+              ],
+            },
           ],
         },
       ]);
@@ -345,8 +400,14 @@ describe('parse()', () => {
             type: EventType.FunctionCall,
             symbol: 'sum',
             parameters: [
-              {type: TokenType.Symbol, value: 'x'},
-              {type: TokenType.Symbol, value: 'y'},
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'x'},
+              },
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'y'},
+              },
             ],
           },
         },
@@ -419,20 +480,26 @@ describe('parse()', () => {
       ]);
     });
 
-    it.skip('supports nested functions', () => {
+    it('supports nested functions', () => {
       expect(
         parse([
-          ...getMockFunction('add', [
-            ...getMockFunction('calc', [
+          {type: TokenType.Symbol, value: 'add'},
+          {type: TokenType.Special, value: '='},
+          ...getMockFunctionExpression([
+            {type: TokenType.Symbol, value: 'calc'},
+            {type: TokenType.Special, value: '='},
+            ...getMockFunctionExpression([
               {type: TokenType.Number, value: '2'},
               {type: TokenType.MathOperation, value: '*'},
               {type: TokenType.Number, value: '2'},
             ]),
+            {type: TokenType.Special, value: ';'},
             {type: TokenType.Symbol, value: 'calc'},
             {type: TokenType.Special, value: '('},
             {type: TokenType.Special, value: ')'},
             {type: TokenType.Special, value: ';'},
           ]),
+          {type: TokenType.Special, value: ';'},
           {type: TokenType.Symbol, value: 'add'},
           {type: TokenType.Special, value: '('},
           {type: TokenType.Special, value: ')'},
@@ -473,13 +540,13 @@ describe('parse()', () => {
                         value: '2',
                       },
                     },
-                    {
-                      type: 'FunctionCall',
-                      symbol: 'calc',
-                      parameters: [],
-                    },
                   ],
                 },
+              },
+              {
+                type: 'FunctionCall',
+                symbol: 'calc',
+                parameters: [],
               },
             ],
           },
@@ -490,20 +557,17 @@ describe('parse()', () => {
           parameters: [],
         },
       ]);
-
-      function getMockFunction(name: string, body: Token[]) {
-        return [
-          {type: TokenType.Symbol, value: name},
-          {type: TokenType.Special, value: '='},
-          {type: TokenType.Special, value: '{'},
-          {type: TokenType.Special, value: '('},
-          {type: TokenType.Special, value: ')'},
-          ...body,
-          {type: TokenType.Special, value: '}'},
-          {type: TokenType.Special, value: ';'},
-        ];
-      }
     });
+
+    function getMockFunctionExpression(body: Token[]) {
+      return [
+        {type: TokenType.Special, value: '{'},
+        {type: TokenType.Special, value: '('},
+        {type: TokenType.Special, value: ')'},
+        ...body,
+        {type: TokenType.Special, value: '}'},
+      ];
+    }
   });
 
   describe('variable assignments', () => {

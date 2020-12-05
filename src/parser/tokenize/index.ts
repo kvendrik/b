@@ -1,1 +1,1 @@
-export {default, Token, Type} from './tokenize';
+export {default, Token, Type, BooleanValue} from './tokenize';

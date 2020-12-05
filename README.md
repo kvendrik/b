@@ -29,21 +29,26 @@ You can also use files by passing the file path into the CLI.
 `example-program.b`
 
 ```
-multiply = {(x, y) x * y};
-calc = {(x)
-  doubled = multiply(x, 2);
-  4 * doubled
-};
+iteration = 0;
 
-result = calc(5);
-message = concat("The result is", result);
+while(iteration < 100, {()
+  iteration = iteration + 1;
 
-log(message);
+  if(iteration == 50, {() log("Halfway!")});
+
+  message = concat("Currently at: ", iteration);
+  log(message);
+});
 ```
 
 ```
 ./b ./example-program.b
-The result is 40
+Currently at: 1
+Currently at: 2
+Currently at: 3
+Currently at: 4
+Currently at: 5
+...
 ```
 
 ## Why
@@ -61,12 +66,14 @@ It's all written in JS which, depending on what it's used for, might not be what
 - [x] Function calls
 - [x] Multiline support
 - [x] Scoped variables
-- [ ] Conditional logic
+- [x] Conditional logic
+- [x] Loops
+- [x] Using function expressions as function arguments
+- [x] Scoped functions
+- [x] Loop continues and returns without value (using `break` keyword)
+- [ ] Early returns with value
 - [ ] Using function calls directly as function arguments
-- [ ] Using function expressions as function arguments
-- [ ] Scoped functions (not supported by parser yet as it closes functions at the first occurance of `}`)
 - [ ] Line and character numbers in error messages
 - [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
 - [ ] Priority groups (e.g. `(2 + 2) * 2`)
-- [ ] Loops
 - [ ] Arrays

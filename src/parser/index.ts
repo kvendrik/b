@@ -7,7 +7,7 @@ import parse, {
   FunctionExpression,
   GenericExpression,
 } from './parse';
-import tokenize, {Token, Type as TokenType} from './tokenize';
+import tokenize, {Token, Type as TokenType, BooleanValue} from './tokenize';
 
 export function toAST(program: string): Event[] {
   const tokens = tokenize(program);
@@ -24,4 +24,5 @@ export {
   FunctionCall,
   FunctionExpression,
   GenericExpression,
+  BooleanValue,
 };

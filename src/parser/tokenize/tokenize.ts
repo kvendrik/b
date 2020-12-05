@@ -12,6 +12,11 @@ export interface Token {
   value: string;
 }
 
+export enum BooleanValue {
+  True = 'true',
+  False = 'false',
+}
+
 export default function tokenize(input: string): Token[] {
   const tokens = [];
 
@@ -66,7 +71,7 @@ export default function tokenize(input: string): Token[] {
     }
 
     if (
-      ['=', '(', ')', '?', ':', '{', '}', ',', ';', '<', '>'].includes(
+      ['=', '!', '(', ')', '?', ':', '{', '}', ',', ';', '<', '>'].includes(
         character,
       ) &&
       !stringState.open
@@ -79,7 +84,7 @@ export default function tokenize(input: string): Token[] {
       continue;
     }
 
-    if (['+', '-', '*', '/'].includes(character)) {
+    if (['+', '-', '*', '/', '%'].includes(character)) {
       tokens.push({
         type: Type.MathOperation,
         value: character,
@@ -135,9 +140,10 @@ export default function tokenize(input: string): Token[] {
       const finalValue = symbolState.currentValue;
       symbolState.open = false;
       tokens.push({
-        type: ['true', 'false'].includes(finalValue)
-          ? Type.Boolean
-          : Type.Symbol,
+        type:
+          finalValue === BooleanValue.True || finalValue === BooleanValue.False
+            ? Type.Boolean
+            : Type.Symbol,
         value: finalValue,
       });
     }

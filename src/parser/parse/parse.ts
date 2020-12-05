@@ -7,7 +7,6 @@ export enum EventType {
   FunctionExpression = 'FunctionExpression',
   FunctionCall = 'FunctionCall',
   Test = 'Test',
-  Condition = 'Condition',
 }
 
 export enum Operator {
@@ -15,6 +14,7 @@ export enum Operator {
   Multiply = '*',
   Subtract = '-',
   Divide = '/',
+  Remainder = '%',
   AssignmentSplit = '=',
   BiggerThan = '>',
   SmallerThan = '<',
@@ -27,8 +27,6 @@ export enum Operator {
   FunctionExpressionOpen = '{',
   FunctionExpressionClose = '}',
   ListDivider = ',',
-  ConditionTestEnd = '?',
-  ConditionTestSplit = ':',
 }
 
 export interface GenericExpression {
@@ -36,13 +34,6 @@ export interface GenericExpression {
   operator: Operator;
   left: Token | Event;
   right: Token | Event | null;
-}
-
-export interface ConditionalExpression {
-  type: EventType.Condition;
-  test: GenericExpression & {type: EventType.Test};
-  consequent: Token | Event;
-  alternate: Token | Event | null;
 }
 
 export interface TokenExpression {
@@ -59,28 +50,25 @@ export interface FunctionExpression {
 export interface FunctionCall {
   type: EventType.FunctionCall;
   symbol: string;
-  parameters: Token[] | null;
+  parameters: Event[];
 }
 
 export type Event =
   | GenericExpression
   | TokenExpression
   | FunctionExpression
-  | FunctionCall
-  | ConditionalExpression;
+  | FunctionCall;
 
 export default function parse(tokens: Token[]): Event[] {
   const events: Event[] = [];
-  let currentlyInNestedBlock = false;
+  let currentDepth = 0;
 
   const lines = tokens.reduce(
     (currentLines, token) => {
-      if (token.value === Operator.FunctionExpressionOpen)
-        currentlyInNestedBlock = true;
-      if (token.value === Operator.FunctionExpressionClose)
-        currentlyInNestedBlock = false;
+      if (token.value === Operator.FunctionExpressionOpen) currentDepth += 1;
+      if (token.value === Operator.FunctionExpressionClose) currentDepth -= 1;
 
-      if (token.value === Operator.EndOfLine && !currentlyInNestedBlock) {
+      if (token.value === Operator.EndOfLine && currentDepth === 0) {
         return [...currentLines, []];
       }
 
@@ -199,6 +187,8 @@ class FunctionExpressionReader {
 }
 
 class FunctionCallReader {
+  private depth = 0;
+  private parameterTokens: Token[][] = [[]];
   private event: FunctionCall;
 
   static isFunctionCallStart({value}: Token, prevToken: Token) {
@@ -216,14 +206,32 @@ class FunctionCallReader {
     };
   }
 
-  read({type, value}: Token) {
-    if (value === Operator.ListDivider) return;
+  read(
+    {type, value}: Token,
+    _prevToken: Token,
+    _index: number,
+    isEndOfInput: boolean,
+  ) {
+    if (value === Operator.PriorityGroupOpen) this.depth += 1;
+    if (value === Operator.PriorityGroupClose) this.depth -= 1;
 
-    if (value === Operator.PriorityGroupClose) {
+    if (value === Operator.ListDivider && this.depth === 0) {
+      this.parameterTokens.push([]);
+      return;
+    }
+
+    if (isEndOfInput) {
+      this.event.parameters = this.parseParameterTokens();
       return this.event;
     }
 
-    this.event.parameters?.push({type, value});
+    this.parameterTokens[this.parameterTokens.length - 1].push({type, value});
+  }
+
+  private parseParameterTokens() {
+    return this.parameterTokens
+      .map((tokens) => parseGroup(tokens))
+      .filter((parameter) => parameter != null) as Event[];
   }
 }
 
@@ -346,6 +354,8 @@ function getMathOperatorType(value: string) {
       return Operator.Subtract;
     case Operator.Divide:
       return Operator.Divide;
+    case Operator.Remainder:
+      return Operator.Remainder;
   }
   return null;
 }
