@@ -1,5 +1,6 @@
 import {Type as TokenType, Token} from '../../tokenize';
-import parse, {EventType, Operator} from '../parse';
+import parse from '../parse';
+import {EventType, Operator} from '../resolvers';
 
 describe('parse()', () => {
   describe('literals', () => {

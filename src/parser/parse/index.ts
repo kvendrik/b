@@ -1,5 +1,5 @@
+export {default} from './parse';
 export {
-  default,
   Event,
   EventType,
   Operator,
@@ -7,4 +7,4 @@ export {
   FunctionCall,
   FunctionExpression,
   GenericExpression,
-} from './parse';
+} from './resolvers';
