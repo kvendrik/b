@@ -51,6 +51,28 @@ Currently at: 5
 ...
 ```
 
+### Programmatically
+
+This repository hasn't been released as a package but if you'd like to play around with it in code you can install it using it's Github URL:
+
+```
+yarn add https://github.com/kvendrik/b
+```
+
+```ts
+import {Interpreter, toAST} from 'b';
+
+const ast = toAST(`
+  count = 2;
+  multiply = {(x, y) x * y};
+  multiply(count, 2);
+`);
+
+const interpreter = new Interpreter();
+
+console.log(interpreter.evaluate(ast)); // 4
+```
+
 ## Why
 
 I created this for practise purposes. I wanted to learn more about the inner workings of lexers, parsers, and interpreters. It seems like a good way to do so was by writing my own.
