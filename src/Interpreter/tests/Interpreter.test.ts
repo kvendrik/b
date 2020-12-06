@@ -336,7 +336,7 @@ describe('Interpreter()', () => {
 
     describe('concat()', () => {
       it('concatenates multiple strings', () => {
-        const ast = toAST('concat("Hello", "there!");');
+        const ast = toAST('concat("Hello ", "there!");');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
         expect(result).toEqual({type: TokenType.String, value: 'Hello there!'});

@@ -30,7 +30,7 @@ const buildIns: {
 
     const resolvedTokens = tokens as Token[];
     const resultString = resolvedTokens.reduce(
-      (current, {value}) => (current !== '' ? `${current} ${value}` : value),
+      (current, {value}) => (current !== '' ? `${current}${value}` : value),
       '',
     );
     return {type: TokenType.String, value: resultString};
