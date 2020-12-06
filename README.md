@@ -71,8 +71,8 @@ It's all written in JS which, depending on what it's used for, might not be what
 - [x] Using function expressions as function arguments
 - [x] Scoped functions
 - [x] Loop continues and returns without value (using `break` keyword)
+- [x] Using function calls directly as function arguments
 - [ ] Early returns with value
-- [ ] Using function calls directly as function arguments
 - [ ] Line and character numbers in error messages
 - [ ] Chained math operations (not implemented in interpreter yet e.g. `2 + 2 * 4 / 2`)
 - [ ] Priority groups (e.g. `(2 + 2) * 2`)

@@ -414,7 +414,7 @@ describe('parse()', () => {
       ]);
     });
 
-    it.skip('understands function calls with a function call as an argument', () => {
+    it('understands function calls with a function call as an argument', () => {
       expect(
         parse([
           {type: TokenType.Symbol, value: 'sum'},
@@ -436,7 +436,10 @@ describe('parse()', () => {
               symbol: 'calc',
               parameters: [],
             },
-            {type: TokenType.Symbol, value: 'y'},
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Symbol, value: 'y'},
+            },
           ],
         },
       ]);

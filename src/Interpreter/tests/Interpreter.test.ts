@@ -90,7 +90,7 @@ describe('Interpreter()', () => {
       expect(result).toEqual({type: TokenType.Number, value: '8'});
     });
 
-    it.skip('understands function calls as arguments', () => {
+    it('understands function calls as arguments', () => {
       const ast = toAST(`add = {() 2 + 2}; sum = {(x) x * 2}; sum(add())`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
