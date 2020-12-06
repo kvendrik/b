@@ -5,6 +5,7 @@
     "noUnusedParameters": true,
     "strict": true,
     "downlevelIteration": true,
+    "declaration": true,
     "outDir": "./build"
   }
 }

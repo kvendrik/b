@@ -53,7 +53,7 @@ Currently at: 5
 
 ### Programmatically
 
-This repository hasn't been released as a package but if you'd like to play around with it in code you can install it using it's Github URL:
+If you'd like to play around with the parser and/or interpreter in code you can install the package using it's Github URL:
 
 ```
 yarn add https://github.com/kvendrik/b
@@ -70,7 +70,7 @@ const ast = toAST(`
 
 const interpreter = new Interpreter();
 
-console.log(interpreter.evaluate(ast)); // 4
+console.log(interpreter.evaluate(ast)); // {type: 'Number', value: '4'}
 ```
 
 ## Why
