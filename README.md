@@ -53,7 +53,7 @@ Currently at: 5
 
 ### Programmatically
 
-If you'd like to play around with the parser and/or interpreter in code you can install the package using it's Github URL:
+If you'd like to play around with the parser and/or interpreter in code you can install the package using its Github URL:
 
 ```
 yarn add https://github.com/kvendrik/b
