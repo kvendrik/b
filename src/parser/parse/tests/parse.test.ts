@@ -75,7 +75,7 @@ describe('parse()', () => {
       ]);
     });
 
-    it('can be used to assign values to', () => {
+    it.only('can be used to assign values to', () => {
       console.log(
         JSON.stringify(
           parse([

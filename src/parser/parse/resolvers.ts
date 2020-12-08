@@ -79,6 +79,7 @@ export type Event =
   | MemberExpression;
 
 interface ExpressionReader {
+  canBeAssignmentLeftHand: boolean;
   read(
     token: Token,
     prevToken: Token,
@@ -88,6 +89,7 @@ interface ExpressionReader {
 }
 
 export class MemberExpressionReader implements ExpressionReader {
+  public canBeAssignmentLeftHand = true;
   private event: MemberExpression;
   private currentKeyTokens: Token[] = [];
   private depth = 0;
@@ -96,7 +98,7 @@ export class MemberExpressionReader implements ExpressionReader {
     return value === Operator.MemberOpen && prevToken.type === TokenType.Symbol;
   }
 
-  constructor(symbolToken: Token<TokenType.Symbol>) {
+  constructor(symbolToken: Token<TokenType.Symbol>, private tokens: Token[]) {
     this.event = {
       type: EventType.MemberExpression,
       symbol: symbolToken,
@@ -104,13 +106,10 @@ export class MemberExpressionReader implements ExpressionReader {
     };
   }
 
-  read(
-    {type, value}: Token,
-    _prevToken: Token,
-    _index: number,
-    isEndOfInput: boolean,
-  ) {
-    if (value === Operator.MemberOpen) this.depth += 1;
+  read({type, value}: Token, _: Token, index: number) {
+    if (value === Operator.MemberOpen) {
+      this.depth += 1;
+    }
 
     if (
       this.depth === 0 &&
@@ -128,16 +127,21 @@ export class MemberExpressionReader implements ExpressionReader {
 
         this.event.keys.push(keyResult);
         this.currentKeyTokens = [];
+
+        if (this.tokens[index + 1]?.value !== Operator.MemberOpen) {
+          return this.event;
+        }
+
+        return;
       }
 
       this.depth -= 1;
     }
-
-    if (isEndOfInput) return this.event;
   }
 }
 
 export class DictionaryExpressionReader implements ExpressionReader {
+  public canBeAssignmentLeftHand = false;
   private event: DictionaryExpression;
   private currentValueTokens: Token[] = [];
   private parsingType: 'key' | 'value' = 'key';
@@ -207,6 +211,7 @@ export class DictionaryExpressionReader implements ExpressionReader {
 }
 
 export class FunctionExpressionReader implements ExpressionReader {
+  public canBeAssignmentLeftHand = false;
   private event: FunctionExpression;
 
   static isFunctionExpressionStart({value}: Token, prevToken: Token) {
@@ -240,6 +245,7 @@ export class FunctionExpressionReader implements ExpressionReader {
 }
 
 export class FunctionCallReader implements ExpressionReader {
+  public canBeAssignmentLeftHand = false;
   private depth = 0;
   private parameterTokens: Token[][] = [[]];
   private event: FunctionCall;
@@ -289,6 +295,7 @@ export class FunctionCallReader implements ExpressionReader {
 }
 
 export class MathOperationReader implements ExpressionReader {
+  public canBeAssignmentLeftHand = false;
   private event: GenericExpression;
 
   static isMathOperationStart({type}: Token) {
@@ -330,21 +337,20 @@ export class MathOperationReader implements ExpressionReader {
 
 export function resolveAssignmentEvent(
   {value}: Token,
-  prevToken: Token,
+  left: Token | Event,
   index: number,
   tokens: Token[],
 ): Event | void {
-  if (value === Operator.AssignmentSplit && prevToken) {
-    let valueTokens = tokens.slice(index + 1);
+  if (value !== Operator.AssignmentSplit) return;
 
-    return {
-      type: EventType.Assignment,
-      operator: Operator.AssignmentSplit,
-      left: prevToken,
-      right:
-        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
-    };
-  }
+  const valueTokens = tokens.slice(index + 1);
+
+  return {
+    type: EventType.Assignment,
+    operator: Operator.AssignmentSplit,
+    left,
+    right: valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+  };
 }
 
 export function resolveTestEvent(

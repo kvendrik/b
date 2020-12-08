@@ -60,6 +60,32 @@ export function parseGroup(tokens: Token[]): Event | null {
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
     const prevToken = index === 0 ? null : tokens[index - 1];
+    const waitingForAssignment: {
+      isWaiting: boolean;
+      prevEvent: Event | null;
+    } = {
+      isWaiting: false,
+      prevEvent: null,
+    };
+
+    console.log(waitingForAssignment);
+
+    if (
+      waitingForAssignment.isWaiting &&
+      waitingForAssignment.prevEvent &&
+      prevToken
+    ) {
+      const assignmentEvent = resolveAssignmentEvent(
+        {type, value},
+        waitingForAssignment.prevEvent,
+        index,
+        tokens,
+      );
+
+      if (assignmentEvent) return assignmentEvent;
+
+      return waitingForAssignment.prevEvent;
+    }
 
     if (currentReader !== null && prevToken) {
       const event = currentReader.read(
@@ -68,7 +94,15 @@ export function parseGroup(tokens: Token[]): Event | null {
         index,
         isEndOfInput,
       );
+
+      console.log(event);
+
       if (event) {
+        if (currentReader.canBeAssignmentLeftHand === true) {
+          waitingForAssignment.isWaiting = true;
+          waitingForAssignment.prevEvent = event;
+          continue;
+        }
         return event;
       } else {
         continue;
@@ -84,6 +118,7 @@ export function parseGroup(tokens: Token[]): Event | null {
     ) {
       currentReader = new MemberExpressionReader(
         prevToken as Token<TokenType.Symbol>,
+        tokens,
       );
       continue;
     }
