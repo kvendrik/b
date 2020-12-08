@@ -23,6 +23,275 @@ describe('parse()', () => {
     });
   });
 
+  describe('member expressions', () => {
+    it('understands basic member expressions', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'data'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.String, value: 'country'},
+          {type: TokenType.Special, value: ']'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.MemberExpression,
+          symbol: {type: TokenType.Symbol, value: 'data'},
+          keys: [
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.String, value: 'country'},
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands nested member expressions', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'countries'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: ']'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.Symbol, value: 'province'},
+          {type: TokenType.Special, value: ']'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.MemberExpression,
+          symbol: {type: TokenType.Symbol, value: 'countries'},
+          keys: [
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.String, value: 'CA'},
+            },
+            {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Symbol, value: 'province'},
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('can be used to assign values to', () => {
+      console.log(
+        JSON.stringify(
+          parse([
+            {type: TokenType.Symbol, value: 'countries'},
+            {type: TokenType.Special, value: '['},
+            {type: TokenType.String, value: 'CA'},
+            {type: TokenType.Special, value: ']'},
+            {type: TokenType.Special, value: '['},
+            {type: TokenType.Symbol, value: 'province'},
+            {type: TokenType.Special, value: ']'},
+            {type: TokenType.Special, value: '='},
+            {type: TokenType.String, value: 'ON'},
+          ]),
+          null,
+          2,
+        ),
+      );
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'countries'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: ']'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.Symbol, value: 'province'},
+          {type: TokenType.Special, value: ']'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.String, value: 'ON'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Assignment,
+          operator: Operator.AssignmentSplit,
+          left: {
+            type: EventType.MemberExpression,
+            symbol: {type: TokenType.Symbol, value: 'countries'},
+            keys: [
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.String, value: 'CA'},
+              },
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'province'},
+              },
+            ],
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.String, value: 'ON'},
+          },
+        },
+      ]);
+    });
+  });
+
+  describe('dictionary expressions', () => {
+    it('understands basic dictionaries', () => {
+      expect(
+        parse([
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'animal'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.String, value: 'cat'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.DictionaryExpression,
+          body: [
+            {
+              key: {type: TokenType.String, value: 'animal'},
+              value: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.String, value: 'cat'},
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands dictionaries with operation values', () => {
+      expect(
+        parse([
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'animal'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.Number, value: '2'},
+          {type: TokenType.MathOperation, value: '*'},
+          {type: TokenType.Number, value: '2'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.DictionaryExpression,
+          body: [
+            {
+              key: {type: TokenType.String, value: 'animal'},
+              value: {
+                type: EventType.MathOperation,
+                operator: Operator.Multiply,
+                left: {type: TokenType.Number, value: '2'},
+                right: {type: TokenType.Number, value: '2'},
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands dictionaries with symbols', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Number, value: '120'},
+          {type: TokenType.Special, value: ';'},
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'count'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.Symbol, value: 'count'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Assignment,
+          operator: Operator.AssignmentSplit,
+          left: {type: TokenType.Symbol, value: 'count'},
+          right: {type: TokenType.Number, value: '120'},
+        },
+        {
+          type: EventType.DictionaryExpression,
+          body: [
+            {
+              key: {type: TokenType.String, value: 'count'},
+              value: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'count'},
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands nested dictionaries', () => {
+      expect(
+        parse([
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'data'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'country'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: '}'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.DictionaryExpression,
+          body: [
+            {
+              key: {type: TokenType.String, value: 'data'},
+              value: {
+                type: EventType.DictionaryExpression,
+                body: [
+                  {
+                    key: {type: TokenType.String, value: 'country'},
+                    value: {
+                      type: EventType.TokenExpression,
+                      token: {type: TokenType.String, value: 'CA'},
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('understands dictionary variable assignments', () => {
+      expect(
+        parse([
+          {type: TokenType.String, value: 'data'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Special, value: '{'},
+          {type: TokenType.String, value: 'country'},
+          {type: TokenType.Special, value: ':'},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: '}'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Assignment,
+          operator: Operator.AssignmentSplit,
+          left: {type: TokenType.String, value: 'data'},
+          right: {
+            type: EventType.DictionaryExpression,
+            body: [
+              {
+                key: {type: TokenType.String, value: 'country'},
+                value: {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.String, value: 'CA'},
+                },
+              },
+            ],
+          },
+        },
+      ]);
+    });
+  });
+
   describe('tests', () => {
     it('understands basic equality evaluations', () => {
       expect(

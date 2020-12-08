@@ -1,14 +1,17 @@
+import {TokenType} from '..';
 import {Token} from '../tokenize';
 import {
   MathOperationReader,
   FunctionCallReader,
   FunctionExpressionReader,
+  DictionaryExpressionReader,
   resolveTestEvent,
   resolveAssignmentEvent,
   Operator,
   Event,
   EventType,
   TokenExpression,
+  MemberExpressionReader,
 } from './resolvers';
 
 export default function parse(tokens: Token[]): Event[] {
@@ -17,8 +20,8 @@ export default function parse(tokens: Token[]): Event[] {
 
   const lines = tokens.reduce(
     (currentLines, token) => {
-      if (token.value === Operator.FunctionExpressionOpen) currentDepth += 1;
-      if (token.value === Operator.FunctionExpressionClose) currentDepth -= 1;
+      if (token.value === Operator.BlockOpen) currentDepth += 1;
+      if (token.value === Operator.BlockClose) currentDepth -= 1;
 
       if (token.value === Operator.EndOfLine && currentDepth === 0) {
         return [...currentLines, []];
@@ -50,6 +53,8 @@ export function parseGroup(tokens: Token[]): Event | null {
     | MathOperationReader
     | FunctionCallReader
     | FunctionExpressionReader
+    | DictionaryExpressionReader
+    | MemberExpressionReader
     | null = null;
 
   for (const [index, {type, value}] of tokens.entries()) {
@@ -70,12 +75,36 @@ export function parseGroup(tokens: Token[]): Event | null {
       }
     }
 
-    if (FunctionExpressionReader.isFunctionExpressionStart({type, value})) {
-      currentReader = new FunctionExpressionReader(tokens);
+    if (prevToken == null) {
       continue;
     }
 
-    if (prevToken == null) {
+    if (
+      MemberExpressionReader.isMemberExpressionStart({type, value}, prevToken)
+    ) {
+      currentReader = new MemberExpressionReader(
+        prevToken as Token<TokenType.Symbol>,
+      );
+      continue;
+    }
+
+    if (
+      DictionaryExpressionReader.isDictionaryExpressionStart(
+        {type, value},
+        prevToken,
+      )
+    ) {
+      currentReader = new DictionaryExpressionReader({type, value});
+      continue;
+    }
+
+    if (
+      FunctionExpressionReader.isFunctionExpressionStart(
+        {type, value},
+        prevToken,
+      )
+    ) {
+      currentReader = new FunctionExpressionReader(tokens);
       continue;
     }
 

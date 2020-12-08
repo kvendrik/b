@@ -8,6 +8,8 @@ export enum EventType {
   FunctionExpression = 'FunctionExpression',
   FunctionCall = 'FunctionCall',
   Test = 'Test',
+  DictionaryExpression = 'DictionaryExpression',
+  MemberExpression = 'MemberExpression',
 }
 
 export enum Operator {
@@ -25,8 +27,11 @@ export enum Operator {
   EndOfLine = ';',
   PriorityGroupOpen = '(',
   PriorityGroupClose = ')',
-  FunctionExpressionOpen = '{',
-  FunctionExpressionClose = '}',
+  MemberOpen = '[',
+  MemberClose = ']',
+  BlockOpen = '{',
+  BlockClose = '}',
+  DictionaryPairDivider = ':',
   ListDivider = ',',
 }
 
@@ -54,11 +59,24 @@ export interface FunctionCall {
   parameters: Event[];
 }
 
+export interface DictionaryExpression {
+  type: EventType.DictionaryExpression;
+  body: {key: Token; value: Event}[];
+}
+
+export interface MemberExpression {
+  type: EventType.MemberExpression;
+  symbol: Token<TokenType.Symbol>;
+  keys: Event[];
+}
+
 export type Event =
   | GenericExpression
   | TokenExpression
   | FunctionExpression
-  | FunctionCall;
+  | FunctionCall
+  | DictionaryExpression
+  | MemberExpression;
 
 interface ExpressionReader {
   read(
@@ -69,27 +87,145 @@ interface ExpressionReader {
   ): Event | void;
 }
 
+export class MemberExpressionReader implements ExpressionReader {
+  private event: MemberExpression;
+  private currentKeyTokens: Token[] = [];
+  private depth = 0;
+
+  static isMemberExpressionStart({value}: Token, prevToken: Token) {
+    return value === Operator.MemberOpen && prevToken.type === TokenType.Symbol;
+  }
+
+  constructor(symbolToken: Token<TokenType.Symbol>) {
+    this.event = {
+      type: EventType.MemberExpression,
+      symbol: symbolToken,
+      keys: [],
+    };
+  }
+
+  read(
+    {type, value}: Token,
+    _prevToken: Token,
+    _index: number,
+    isEndOfInput: boolean,
+  ) {
+    if (value === Operator.MemberOpen) this.depth += 1;
+
+    if (
+      this.depth === 0 &&
+      value !== Operator.MemberOpen &&
+      value !== Operator.MemberClose
+    )
+      this.currentKeyTokens.push({type, value});
+
+    if (value === Operator.MemberClose) {
+      if (this.depth === 0) {
+        const keyResult = parseGroup(this.currentKeyTokens);
+
+        if (keyResult == null)
+          throw new Error(`Evaluation of dictionary key resulted in void.`);
+
+        this.event.keys.push(keyResult);
+        this.currentKeyTokens = [];
+      }
+
+      this.depth -= 1;
+    }
+
+    if (isEndOfInput) return this.event;
+  }
+}
+
+export class DictionaryExpressionReader implements ExpressionReader {
+  private event: DictionaryExpression;
+  private currentValueTokens: Token[] = [];
+  private parsingType: 'key' | 'value' = 'key';
+  private depth = 0;
+
+  static isDictionaryExpressionStart({type}: Token, prevToken: Token) {
+    return type === TokenType.String && prevToken.value === Operator.BlockOpen;
+  }
+
+  constructor(private currentKey: Token | null) {
+    this.event = {
+      type: EventType.DictionaryExpression,
+      body: [],
+    };
+  }
+
+  read({type, value}: Token) {
+    if (value === Operator.BlockOpen) this.depth += 1;
+
+    if (value === Operator.BlockClose) {
+      if (this.depth === 0) {
+        this.parseCurrentKeyValuePair();
+        return this.event;
+      }
+      this.depth -= 1;
+    }
+
+    if (this.parsingType === 'value') {
+      this.currentValueTokens.push({type, value});
+    }
+
+    if (this.depth !== 0) {
+      return;
+    }
+
+    if (type === TokenType.String && this.parsingType === 'key') {
+      this.currentKey = {type, value};
+      return;
+    }
+
+    if (value === Operator.DictionaryPairDivider) {
+      this.parsingType = 'value';
+      return;
+    }
+
+    if (value === Operator.ListDivider) {
+      this.parsingType = 'key';
+      this.parseCurrentKeyValuePair();
+      return;
+    }
+  }
+
+  private parseCurrentKeyValuePair() {
+    if (this.currentKey == null)
+      throw new Error(`No key found for dictionary literal pair.`);
+
+    const value = parseGroup(this.currentValueTokens);
+
+    if (value == null)
+      throw new Error(`Value on ${this.currentKey} evaluated to void.`);
+
+    this.event.body.push({key: this.currentKey, value});
+
+    this.currentKey = null;
+    this.currentValueTokens = [];
+  }
+}
+
 export class FunctionExpressionReader implements ExpressionReader {
   private event: FunctionExpression;
 
-  static isFunctionExpressionStart({value}: Token) {
-    return value === Operator.FunctionExpressionOpen;
+  static isFunctionExpressionStart({value}: Token, prevToken: Token) {
+    return (
+      value === Operator.PriorityGroupOpen &&
+      prevToken.value === Operator.BlockOpen
+    );
   }
 
   constructor(private tokens: Token[]) {
     this.event = {
       type: EventType.FunctionExpression,
-      parameters: null,
+      parameters: [],
       body: null,
     };
   }
 
   read({type, value}: Token, _: Token, index: number) {
-    if (value === Operator.PriorityGroupOpen) {
-      this.event.parameters = [];
-    }
-
-    if (type === TokenType.Symbol && this.event.parameters) {
+    if (type === TokenType.Symbol) {
       this.event.parameters?.push({type, value});
     }
 

@@ -7,8 +7,8 @@ export enum Type {
   Special = 'Special',
 }
 
-export interface Token {
-  type: Type;
+export interface Token<T = Type> {
+  type: T;
   value: string;
 }
 
@@ -71,9 +71,22 @@ export default function tokenize(input: string): Token[] {
     }
 
     if (
-      ['=', '!', '(', ')', '?', ':', '{', '}', ',', ';', '<', '>'].includes(
-        character,
-      ) &&
+      [
+        '=',
+        '!',
+        '(',
+        ')',
+        '?',
+        ':',
+        '{',
+        '}',
+        '[',
+        ']',
+        ',',
+        ';',
+        '<',
+        '>',
+      ].includes(character) &&
       !stringState.open
     ) {
       closeSymbolRead();
