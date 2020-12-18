@@ -46,6 +46,11 @@ describe('tokenize()', () => {
       ]);
     });
 
+    it('understands strings with numbers as strings', () => {
+      const input = '"2"';
+      expect(tokenize(input)).toEqual([{type: Type.String, value: '2'}]);
+    });
+
     it('accepts quotes within strings', () => {
       const input = '2 + "he\'llo"';
       expect(tokenize(input)).toEqual([

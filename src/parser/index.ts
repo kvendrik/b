@@ -6,6 +6,9 @@ import parse, {
   FunctionCall,
   FunctionExpression,
   GenericExpression,
+  AssignmentExpression,
+  DictionaryExpression,
+  MemberExpression,
 } from './parse';
 import tokenize, {Token, Type as TokenType, BooleanValue} from './tokenize';
 
@@ -24,5 +27,8 @@ export {
   FunctionCall,
   FunctionExpression,
   GenericExpression,
+  AssignmentExpression,
   BooleanValue,
+  DictionaryExpression,
+  MemberExpression,
 };

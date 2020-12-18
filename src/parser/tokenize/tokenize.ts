@@ -43,7 +43,7 @@ export default function tokenize(input: string): Token[] {
       continue;
     }
 
-    if (/[0-9]/.test(character)) {
+    if (/[0-9]/.test(character) && !stringState.open) {
       if (!numberState.open) {
         numberState.open = true;
         numberState.currentValue = '';

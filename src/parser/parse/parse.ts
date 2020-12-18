@@ -12,6 +12,7 @@ import {
   EventType,
   TokenExpression,
   MemberExpressionReader,
+  AssignmentExpression,
 } from './resolvers';
 
 export default function parse(tokens: Token[]): Event[] {
@@ -49,6 +50,7 @@ export function parseGroup(tokens: Token[]): Event | null {
     } as TokenExpression;
   }
 
+  let assignmentLeftHandEvent: AssignmentExpression['left'] | null = null;
   let currentReader:
     | MathOperationReader
     | FunctionCallReader
@@ -60,31 +62,18 @@ export function parseGroup(tokens: Token[]): Event | null {
   for (const [index, {type, value}] of tokens.entries()) {
     const isEndOfInput = index === tokens.length - 1;
     const prevToken = index === 0 ? null : tokens[index - 1];
-    const waitingForAssignment: {
-      isWaiting: boolean;
-      prevEvent: Event | null;
-    } = {
-      isWaiting: false,
-      prevEvent: null,
-    };
 
-    console.log(waitingForAssignment);
-
-    if (
-      waitingForAssignment.isWaiting &&
-      waitingForAssignment.prevEvent &&
-      prevToken
-    ) {
+    if (assignmentLeftHandEvent) {
       const assignmentEvent = resolveAssignmentEvent(
         {type, value},
-        waitingForAssignment.prevEvent,
+        assignmentLeftHandEvent,
         index,
         tokens,
       );
 
       if (assignmentEvent) return assignmentEvent;
 
-      return waitingForAssignment.prevEvent;
+      return assignmentLeftHandEvent;
     }
 
     if (currentReader !== null && prevToken) {
@@ -95,12 +84,9 @@ export function parseGroup(tokens: Token[]): Event | null {
         isEndOfInput,
       );
 
-      console.log(event);
-
       if (event) {
-        if (currentReader.canBeAssignmentLeftHand === true) {
-          waitingForAssignment.isWaiting = true;
-          waitingForAssignment.prevEvent = event;
+        if (currentReader.canBeAssignmentLeftHand && !isEndOfInput) {
+          assignmentLeftHandEvent = event as AssignmentExpression['left'];
           continue;
         }
         return event;
@@ -158,7 +144,10 @@ export function parseGroup(tokens: Token[]): Event | null {
 
     const assignmentEvent = resolveAssignmentEvent(
       {type, value},
-      prevToken,
+      {
+        type: EventType.TokenExpression,
+        token: prevToken,
+      } as TokenExpression<TokenType.Symbol>,
       index,
       tokens,
     );

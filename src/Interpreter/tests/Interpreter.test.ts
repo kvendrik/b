@@ -50,6 +50,16 @@ describe('Interpreter()', () => {
   });
 
   describe('functions', () => {
+    it('understands function literals', () => {
+      const ast = toAST(`{(x, y) x * y}`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Function,
+      });
+    });
+
     it('understands function declarations', () => {
       const ast = toAST(`sum = {(x, y) x * y}; sum`);
       const interpreter = new Interpreter();
@@ -257,6 +267,40 @@ describe('Interpreter()', () => {
       expect(result).toEqual({
         type: TokenType.Boolean,
         value: BooleanValue.True,
+      });
+    });
+  });
+
+  describe('dictionaries', () => {
+    it('understands dictionary literals', () => {
+      const ast = toAST(`{"animal": "cat"}`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Dictionary,
+      });
+    });
+
+    it('understands dictionary assignments', () => {
+      const ast = toAST(`data = {"animal": "cat"}; data`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Dictionary,
+      });
+    });
+
+    it('understands dictionary member expressions', () => {
+      const ast = toAST(
+        `data = {"animals": {"0": "cat", "1": "dog"}}; data["animals"]["1"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: 'dog',
       });
     });
   });

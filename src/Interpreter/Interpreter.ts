@@ -9,14 +9,21 @@ import {
   FunctionCall,
   Operator,
   BooleanValue,
+  AssignmentExpression,
+  DictionaryExpression,
+  MemberExpression,
 } from '../parser';
 import builtIns from './builtIns';
 
 export enum ObfuscatedValue {
   Function = '[Function]',
+  Dictionary = '[Dictionary]',
 }
 
-type StoredExpression = Token | FunctionExpression;
+type StoredExpression =
+  | TokenExpression
+  | DictionaryExpression
+  | FunctionExpression;
 
 export type Context = Map<string, StoredExpression>;
 
@@ -34,6 +41,12 @@ export default class Interpreter {
         case EventType.Assignment:
           this.handleAssignment(event);
           break;
+        case EventType.FunctionExpression:
+          return {type: TokenType.String, value: ObfuscatedValue.Function};
+        case EventType.DictionaryExpression:
+          return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
+        case EventType.MemberExpression:
+          return this.handleMemberGrab(event);
         case EventType.Test:
           return this.handleTest(event);
         case EventType.MathOperation:
@@ -48,47 +61,93 @@ export default class Interpreter {
     }
   }
 
+  private handleMemberGrab(event: MemberExpression) {
+    const dictionaryExpression = this.resolveStoredValue(event.symbol);
+
+    const subInterpreter = new Interpreter(this.context);
+    let currentDictionaryExpression = dictionaryExpression;
+
+    for (const key of event.keys) {
+      if (currentDictionaryExpression.type !== EventType.DictionaryExpression) {
+        throw new Error(`${event.symbol} is not a dictionary.`);
+      }
+
+      const resolvedKey = subInterpreter.evaluate([key]);
+
+      if (resolvedKey == null)
+        throw new Error(`Key on ${event.symbol} could not be resolved.`);
+
+      const dictionaryPair = currentDictionaryExpression.body.find(
+        ({key}) => key.value === resolvedKey.value,
+      );
+
+      if (dictionaryPair == null)
+        throw new Error(`Key on ${event.symbol} is undefined.`);
+
+      if (dictionaryPair.value.type === EventType.TokenExpression) {
+        return dictionaryPair.value.token;
+      }
+
+      if (dictionaryPair.value.type === EventType.DictionaryExpression) {
+        currentDictionaryExpression = dictionaryPair.value;
+        continue;
+      }
+
+      throw new Error(
+        `Could not resolve dictionary value on ${event.symbol}. Only token literals and dictionaries are valid values.`,
+      );
+    }
+  }
+
   private handleTest(event: GenericExpression): Token | void {
     if (event.right == null) {
       throw new Error('Test missing right side.');
     }
 
-    if (!this.isToken(event.left) || !this.isToken(event.right)) {
+    if (
+      event.left.type !== EventType.TokenExpression ||
+      event.right.type !== EventType.TokenExpression
+    ) {
       throw new Error('Tests can only be used with tokens.');
     }
+
+    const {
+      left: {token: leftToken},
+      right: {token: rightToken},
+    } = event;
 
     if (
       event.operator === Operator.Equals ||
       event.operator === Operator.NegativeEquals
     ) {
-      const leftExpression = this.resolveExpression(event.left);
-      const rightExpression = this.resolveExpression(event.right);
+      const leftExpression = this.resolveStoredValue(leftToken);
+      const rightExpression = this.resolveStoredValue(rightToken);
 
-      if (!this.isToken(leftExpression) || !this.isToken(rightExpression)) {
+      if (
+        leftExpression.type !== EventType.TokenExpression ||
+        rightExpression.type !== EventType.TokenExpression
+      ) {
         throw new Error('Tests can only run equality checks on tokens.');
       }
 
-      const value =
-        leftExpression.type === rightExpression.type &&
-        leftExpression.value === rightExpression.value;
+      const testResult =
+        leftExpression.token.type === rightExpression.token.type &&
+        leftExpression.token.value === rightExpression.token.value;
 
       return {
         type: TokenType.Boolean,
         value:
           event.operator === Operator.Equals
-            ? value === true
+            ? testResult === true
               ? BooleanValue.True
               : BooleanValue.False
-            : value === false
+            : testResult === false
             ? BooleanValue.True
             : BooleanValue.False,
       };
     }
 
-    const {left, right} = this.validateNumericOperation(
-      event.left,
-      event.right,
-    );
+    const {left, right} = this.validateNumericOperation(leftToken, rightToken);
 
     switch (event.operator) {
       case Operator.BiggerThan:
@@ -110,20 +169,26 @@ export default class Interpreter {
     }
   }
 
-  private validateNumericOperation(left: Token, right: Token) {
-    const leftExpression = this.resolveExpression(left);
-    const rightExpression = this.resolveExpression(right);
+  private validateNumericOperation(
+    left: Token,
+    right: Token,
+  ): {left: Token<TokenType.Number>; right: Token<TokenType.Number>} {
+    const leftExpression = this.resolveStoredValue(left);
+    const rightExpression = this.resolveStoredValue(right);
 
     if (
-      !this.isToken(leftExpression) ||
-      !this.isToken(rightExpression) ||
-      leftExpression.type !== TokenType.Number ||
-      rightExpression.type !== TokenType.Number
+      leftExpression.type !== EventType.TokenExpression ||
+      rightExpression.type !== EventType.TokenExpression ||
+      leftExpression.token.type !== TokenType.Number ||
+      rightExpression.token.type !== TokenType.Number
     ) {
       throw new Error('Can only execute numeric operations on numbers.');
     }
 
-    return {left: leftExpression, right: rightExpression};
+    return {
+      left: leftExpression.token as Token<TokenType.Number>,
+      right: rightExpression.token as Token<TokenType.Number>,
+    };
   }
 
   private handleMathOperation({
@@ -135,8 +200,11 @@ export default class Interpreter {
       throw new Error('Operation missing right side.');
     }
 
-    if (this.isToken(left) && this.isToken(right)) {
-      return this.resolveMathOperation(operator, left, right);
+    if (
+      left.type === EventType.TokenExpression &&
+      right.type === EventType.TokenExpression
+    ) {
+      return this.resolveMathOperation(operator, left.token, right.token);
     }
   }
 
@@ -185,7 +253,7 @@ export default class Interpreter {
       throw new Error(`Function ${symbol} is not defined.`);
     }
 
-    if (this.isToken(functionExpression)) {
+    if (functionExpression.type !== EventType.FunctionExpression) {
       throw new Error(`${symbol} is not a function.`);
     }
 
@@ -227,7 +295,10 @@ export default class Interpreter {
                 `Call to ${symbol} has parameter that resolved to incompatible value void.`,
               );
             }
-            return current.set(value, parameterValue);
+            return current.set(value, {
+              type: EventType.TokenExpression,
+              token: parameterValue,
+            });
           }, this.context);
 
     const subInterpreter = new Interpreter(initialContext);
@@ -235,18 +306,22 @@ export default class Interpreter {
   }
 
   private handleTokenExpression({token}: TokenExpression) {
-    const expression = this.resolveExpression(token);
+    const expression = this.resolveStoredValue(token);
 
-    if (this.isToken(expression)) {
-      return expression;
+    if (expression.type === EventType.TokenExpression) {
+      return expression.token;
+    }
+
+    if (expression.type === EventType.DictionaryExpression) {
+      return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
     }
 
     return {type: TokenType.String, value: ObfuscatedValue.Function};
   }
 
-  private resolveExpression({type, value}: Token) {
+  private resolveStoredValue({type, value}: Token): StoredExpression {
     if (type !== TokenType.Symbol) {
-      return {type, value};
+      return {type: EventType.TokenExpression, token: {type, value}};
     }
 
     const storedValue = this.context.get(value);
@@ -258,48 +333,58 @@ export default class Interpreter {
     return storedValue;
   }
 
-  private handleAssignment({left, right}: GenericExpression) {
-    if (left.type !== TokenType.Symbol) {
+  private handleAssignment({left, right}: AssignmentExpression) {
+    if (left.type === EventType.MemberExpression) {
+      return;
+    }
+
+    const {token: leftToken} = left;
+
+    if (leftToken == null)
+      throw new Error('Could not resolve left hand of assignment');
+
+    if (leftToken.type !== TokenType.Symbol) {
       throw new Error('Can’t assign values to a non-symbol.');
     }
 
     if (right == null) {
       throw new Error(
-        `Symbol ${left.value} does not specify a value to be assigned to it.`,
+        `Symbol ${leftToken.value} does not specify a value to be assigned to it.`,
       );
     }
 
-    if (this.isToken(right)) {
-      this.context.set(left.value, right);
-      return;
-    }
+    let token;
 
     switch (right.type) {
       case EventType.FunctionExpression:
-        this.context.set(left.value, right);
+      case EventType.DictionaryExpression:
+      case EventType.TokenExpression:
+        this.context.set(leftToken.value, right);
         break;
       case EventType.MathOperation:
-        const result = this.handleMathOperation(right);
-        if (result == null)
+        token = this.handleMathOperation(right);
+        if (token == null)
           throw new Error(
-            `Math operation could not be resolved for ${left.value}.`,
+            `Math operation could not be resolved for ${leftToken.value}.`,
           );
-        this.context.set(left.value, result);
+        this.context.set(leftToken.value, {
+          type: EventType.TokenExpression,
+          token,
+        });
         break;
       case EventType.FunctionCall:
-        const value = this.handleFunctionCall(right);
-        if (value == null)
+        token = this.handleFunctionCall(right);
+        if (token == null)
           throw new Error(
-            `Call to ${right.symbol} resulted in void which cannot be assigned to ${left.value}.`,
+            `Call to ${right.symbol} resulted in void which cannot be assigned to ${leftToken.value}.`,
           );
-        this.context.set(left.value, value);
+        this.context.set(leftToken.value, {
+          type: EventType.TokenExpression,
+          token,
+        });
         break;
       default:
-        throw new Error(`Right side of ${left.value} is empty.`);
+        throw new Error(`Right side of ${leftToken.value} is empty.`);
     }
-  }
-
-  private isToken(expression: Event | Token): expression is Token {
-    return (expression as Token).value !== undefined;
   }
 }

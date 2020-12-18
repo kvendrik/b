@@ -36,15 +36,22 @@ export enum Operator {
 }
 
 export interface GenericExpression {
-  type: EventType.Assignment | EventType.MathOperation | EventType.Test;
+  type: EventType.MathOperation | EventType.Test;
   operator: Operator;
-  left: Token | Event;
-  right: Token | Event | null;
+  left: Event;
+  right: Event | null;
 }
 
-export interface TokenExpression {
+export interface AssignmentExpression {
+  type: EventType.Assignment;
+  operator: Operator;
+  left: TokenExpression<TokenType.Symbol> | MemberExpression;
+  right: Event | null;
+}
+
+export interface TokenExpression<T = TokenType> {
   type: EventType.TokenExpression;
-  token: Token;
+  token: Token<T>;
 }
 
 export interface FunctionExpression {
@@ -61,7 +68,7 @@ export interface FunctionCall {
 
 export interface DictionaryExpression {
   type: EventType.DictionaryExpression;
-  body: {key: Token; value: Event}[];
+  body: {key: Token<TokenType.String>; value: Event}[];
 }
 
 export interface MemberExpression {
@@ -72,6 +79,7 @@ export interface MemberExpression {
 
 export type Event =
   | GenericExpression
+  | AssignmentExpression
   | TokenExpression
   | FunctionExpression
   | FunctionCall
@@ -92,7 +100,7 @@ export class MemberExpressionReader implements ExpressionReader {
   public canBeAssignmentLeftHand = true;
   private event: MemberExpression;
   private currentKeyTokens: Token[] = [];
-  private depth = 0;
+  private inExpression = true;
 
   static isMemberExpressionStart({value}: Token, prevToken: Token) {
     return value === Operator.MemberOpen && prevToken.type === TokenType.Symbol;
@@ -108,35 +116,43 @@ export class MemberExpressionReader implements ExpressionReader {
 
   read({type, value}: Token, _: Token, index: number) {
     if (value === Operator.MemberOpen) {
-      this.depth += 1;
+      this.inExpression = true;
+      return;
     }
-
-    if (
-      this.depth === 0 &&
-      value !== Operator.MemberOpen &&
-      value !== Operator.MemberClose
-    )
-      this.currentKeyTokens.push({type, value});
 
     if (value === Operator.MemberClose) {
-      if (this.depth === 0) {
-        const keyResult = parseGroup(this.currentKeyTokens);
+      this.inExpression = false;
 
-        if (keyResult == null)
-          throw new Error(`Evaluation of dictionary key resulted in void.`);
+      const nextTokenValue = this.tokens[index + 1]?.value;
 
-        this.event.keys.push(keyResult);
-        this.currentKeyTokens = [];
-
-        if (this.tokens[index + 1]?.value !== Operator.MemberOpen) {
-          return this.event;
-        }
-
-        return;
+      if (nextTokenValue !== Operator.MemberOpen) {
+        this.evaluateCurrentKey();
+        return this.event;
       }
 
-      this.depth -= 1;
+      this.evaluateCurrentKey();
+      return;
     }
+
+    if (this.inExpression) {
+      this.currentKeyTokens.push({type, value});
+    }
+  }
+
+  private evaluateCurrentKey() {
+    const keyEvent =
+      this.currentKeyTokens.length === 1
+        ? ({
+            type: EventType.TokenExpression,
+            token: this.currentKeyTokens[0],
+          } as TokenExpression)
+        : parseGroup(this.currentKeyTokens);
+
+    if (keyEvent == null)
+      throw new Error(`Evaluation of dictionary key resulted in void.`);
+
+    this.event.keys.push(keyEvent);
+    this.currentKeyTokens = [];
   }
 }
 
@@ -169,7 +185,10 @@ export class DictionaryExpressionReader implements ExpressionReader {
       this.depth -= 1;
     }
 
-    if (this.parsingType === 'value') {
+    if (
+      this.parsingType === 'value' &&
+      !(this.depth === 0 && value === Operator.ListDivider)
+    ) {
       this.currentValueTokens.push({type, value});
     }
 
@@ -203,7 +222,10 @@ export class DictionaryExpressionReader implements ExpressionReader {
     if (value == null)
       throw new Error(`Value on ${this.currentKey} evaluated to void.`);
 
-    this.event.body.push({key: this.currentKey, value});
+    this.event.body.push({
+      key: this.currentKey as Token<TokenType.String>,
+      value,
+    });
 
     this.currentKey = null;
     this.currentValueTokens = [];
@@ -306,7 +328,10 @@ export class MathOperationReader implements ExpressionReader {
     this.event = {
       type: EventType.MathOperation,
       operator: getMathOperatorType(value) || ('' as Operator),
-      left: prevToken,
+      left: {
+        type: EventType.TokenExpression,
+        token: prevToken,
+      } as TokenExpression,
       right: null,
     };
   }
@@ -329,7 +354,10 @@ export class MathOperationReader implements ExpressionReader {
     }
 
     if (isEndOfInput) {
-      this.event.right = {type, value};
+      this.event.right = {
+        type: EventType.TokenExpression,
+        token: {type, value},
+      } as TokenExpression;
       return this.event;
     }
   }
@@ -337,7 +365,7 @@ export class MathOperationReader implements ExpressionReader {
 
 export function resolveAssignmentEvent(
   {value}: Token,
-  left: Token | Event,
+  left: AssignmentExpression['left'],
   index: number,
   tokens: Token[],
 ): Event | void {
@@ -349,7 +377,13 @@ export function resolveAssignmentEvent(
     type: EventType.Assignment,
     operator: Operator.AssignmentSplit,
     left,
-    right: valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+    right:
+      valueTokens.length === 1
+        ? {
+            type: EventType.TokenExpression,
+            token: valueTokens[0],
+          }
+        : parseGroup(valueTokens),
   };
 }
 
@@ -364,9 +398,17 @@ export function resolveTestEvent(
     return {
       type: EventType.Test,
       operator: Operator.NegativeEquals,
-      left: prevToken,
+      left: {
+        type: EventType.TokenExpression,
+        token: prevToken,
+      } as TokenExpression,
       right:
-        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+        valueTokens.length === 1
+          ? ({
+              type: EventType.TokenExpression,
+              token: valueTokens[0],
+            } as TokenExpression)
+          : parseGroup(valueTokens),
     };
   }
 
@@ -380,9 +422,17 @@ export function resolveTestEvent(
       return {
         type: EventType.Test,
         operator: Operator.Equals,
-        left: prevToken,
+        left: {
+          type: EventType.TokenExpression,
+          token: prevToken,
+        } as TokenExpression,
         right:
-          valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+          valueTokens.length === 1
+            ? ({
+                type: EventType.TokenExpression,
+                token: valueTokens[0],
+              } as TokenExpression)
+            : parseGroup(valueTokens),
       };
     }
   }
@@ -396,9 +446,17 @@ export function resolveTestEvent(
         value === Operator.BiggerThan
           ? Operator.BiggerThan
           : Operator.SmallerThan,
-      left: prevToken,
+      left: {
+        type: EventType.TokenExpression,
+        token: prevToken,
+      } as TokenExpression,
       right:
-        valueTokens.length === 1 ? valueTokens[0] : parseGroup(valueTokens),
+        valueTokens.length === 1
+          ? ({
+              type: EventType.TokenExpression,
+              token: valueTokens[0],
+            } as TokenExpression)
+          : parseGroup(valueTokens),
     };
   }
 }

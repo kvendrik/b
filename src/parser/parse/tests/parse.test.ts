@@ -75,24 +75,7 @@ describe('parse()', () => {
       ]);
     });
 
-    it.only('can be used to assign values to', () => {
-      console.log(
-        JSON.stringify(
-          parse([
-            {type: TokenType.Symbol, value: 'countries'},
-            {type: TokenType.Special, value: '['},
-            {type: TokenType.String, value: 'CA'},
-            {type: TokenType.Special, value: ']'},
-            {type: TokenType.Special, value: '['},
-            {type: TokenType.Symbol, value: 'province'},
-            {type: TokenType.Special, value: ']'},
-            {type: TokenType.Special, value: '='},
-            {type: TokenType.String, value: 'ON'},
-          ]),
-          null,
-          2,
-        ),
-      );
+    it('can be used to assign values to', () => {
       expect(
         parse([
           {type: TokenType.Symbol, value: 'countries'},
@@ -178,8 +161,14 @@ describe('parse()', () => {
               value: {
                 type: EventType.MathOperation,
                 operator: Operator.Multiply,
-                left: {type: TokenType.Number, value: '2'},
-                right: {type: TokenType.Number, value: '2'},
+                left: {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.Number, value: '2'},
+                },
+                right: {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.Number, value: '2'},
+                },
               },
             },
           ],
@@ -204,8 +193,14 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'count'},
-          right: {type: TokenType.Number, value: '120'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '120'},
+          },
         },
         {
           type: EventType.DictionaryExpression,
@@ -274,7 +269,10 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.String, value: 'data'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.String, value: 'data'},
+          },
           right: {
             type: EventType.DictionaryExpression,
             body: [
@@ -305,8 +303,14 @@ describe('parse()', () => {
         {
           type: EventType.Test,
           operator: Operator.Equals,
-          left: {type: TokenType.Symbol, value: 'count'},
-          right: {type: TokenType.Number, value: '120'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '120'},
+          },
         },
       ]);
     });
@@ -323,8 +327,14 @@ describe('parse()', () => {
         {
           type: EventType.Test,
           operator: Operator.NegativeEquals,
-          left: {type: TokenType.Symbol, value: 'count'},
-          right: {type: TokenType.Number, value: '120'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '120'},
+          },
         },
       ]);
     });
@@ -341,8 +351,14 @@ describe('parse()', () => {
         {
           type: EventType.Test,
           operator: Operator.NegativeEquals,
-          left: {type: TokenType.String, value: 'Hello!'},
-          right: {type: TokenType.String, value: 'Hey'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.String, value: 'Hello!'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.String, value: 'Hey'},
+          },
         },
       ]);
     });
@@ -358,8 +374,14 @@ describe('parse()', () => {
         {
           type: EventType.Test,
           operator: Operator.BiggerThan,
-          left: {type: TokenType.Symbol, value: 'count'},
-          right: {type: TokenType.Number, value: '120'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '120'},
+          },
         },
       ]);
     });
@@ -375,8 +397,14 @@ describe('parse()', () => {
         {
           type: EventType.Test,
           operator: Operator.SmallerThan,
-          left: {type: TokenType.Symbol, value: 'count'},
-          right: {type: TokenType.Number, value: '120'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '120'},
+          },
         },
       ]);
     });
@@ -394,8 +422,14 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Add,
-          left: {type: TokenType.Number, value: '2'},
-          right: {type: TokenType.Number, value: '8'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '2'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '8'},
+          },
         },
       ]);
     });
@@ -411,8 +445,14 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Remainder,
-          left: {type: TokenType.Number, value: '10'},
-          right: {type: TokenType.Number, value: '2'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '10'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '2'},
+          },
         },
       ]);
     });
@@ -428,8 +468,14 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Multiply,
-          left: {type: TokenType.Number, value: '2'},
-          right: {type: TokenType.Number, value: '4'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '2'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '4'},
+          },
         },
       ]);
     });
@@ -445,8 +491,14 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Multiply,
-          left: {type: TokenType.Number, value: '2'},
-          right: {type: TokenType.Symbol, value: 'x'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '2'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'x'},
+          },
         },
       ]);
     });
@@ -462,8 +514,14 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Multiply,
-          left: {type: TokenType.Symbol, value: 'x'},
-          right: {type: TokenType.Symbol, value: 'y'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'x'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'y'},
+          },
         },
       ]);
     });
@@ -483,16 +541,28 @@ describe('parse()', () => {
         {
           type: EventType.MathOperation,
           operator: Operator.Add,
-          left: {type: TokenType.Number, value: '2'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '2'},
+          },
           right: {
             type: EventType.MathOperation,
             operator: Operator.Multiply,
-            left: {type: TokenType.Number, value: '2'},
+            left: {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '2'},
+            },
             right: {
               type: EventType.MathOperation,
               operator: Operator.Divide,
-              left: {type: TokenType.Number, value: '4'},
-              right: {type: TokenType.Number, value: '2'},
+              left: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Number, value: '4'},
+              },
+              right: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Number, value: '2'},
+              },
             },
           },
         },
@@ -526,8 +596,14 @@ describe('parse()', () => {
             {
               type: EventType.MathOperation,
               operator: Operator.Add,
-              left: {type: TokenType.Symbol, value: 'x'},
-              right: {type: TokenType.Symbol, value: 'y'},
+              left: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'x'},
+              },
+              right: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'y'},
+              },
             },
           ],
         },
@@ -665,7 +741,10 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'count'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'count'},
+          },
           right: {
             type: EventType.FunctionCall,
             symbol: 'sum',
@@ -739,14 +818,26 @@ describe('parse()', () => {
             {
               type: EventType.Assignment,
               operator: Operator.AssignmentSplit,
-              left: {type: TokenType.Symbol, value: 'count'},
-              right: {type: TokenType.Number, value: '120'},
+              left: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'count'},
+              },
+              right: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Number, value: '120'},
+              },
             },
             {
               type: EventType.MathOperation,
               operator: Operator.Add,
-              left: {type: TokenType.Symbol, value: 'x'},
-              right: {type: TokenType.Symbol, value: 'count'},
+              left: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'x'},
+              },
+              right: {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.Symbol, value: 'count'},
+              },
             },
           ],
         },
@@ -783,8 +874,11 @@ describe('parse()', () => {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
           left: {
-            type: TokenType.Symbol,
-            value: 'add',
+            type: EventType.TokenExpression,
+            token: {
+              type: TokenType.Symbol,
+              value: 'add',
+            },
           },
           right: {
             type: EventType.FunctionExpression,
@@ -794,8 +888,11 @@ describe('parse()', () => {
                 type: EventType.Assignment,
                 operator: Operator.AssignmentSplit,
                 left: {
-                  type: TokenType.Symbol,
-                  value: 'calc',
+                  type: EventType.TokenExpression,
+                  token: {
+                    type: TokenType.Symbol,
+                    value: 'calc',
+                  },
                 },
                 right: {
                   type: EventType.FunctionExpression,
@@ -805,12 +902,18 @@ describe('parse()', () => {
                       type: EventType.MathOperation,
                       operator: Operator.Multiply,
                       left: {
-                        type: TokenType.Number,
-                        value: '2',
+                        type: EventType.TokenExpression,
+                        token: {
+                          type: TokenType.Number,
+                          value: '2',
+                        },
                       },
                       right: {
-                        type: TokenType.Number,
-                        value: '2',
+                        type: EventType.TokenExpression,
+                        token: {
+                          type: TokenType.Number,
+                          value: '2',
+                        },
                       },
                     },
                   ],
@@ -855,8 +958,14 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'my_number'},
-          right: {type: TokenType.Number, value: '8'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'my_number'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '8'},
+          },
         },
       ]);
     });
@@ -874,12 +983,21 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'my_number'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'my_number'},
+          },
           right: {
             type: EventType.MathOperation,
             operator: Operator.Add,
-            left: {type: TokenType.Number, value: '2'},
-            right: {type: TokenType.Number, value: '8'},
+            left: {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '2'},
+            },
+            right: {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '8'},
+            },
           },
         },
       ]);
@@ -898,8 +1016,14 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'my_number'},
-          right: {type: TokenType.Number, value: '8'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'my_number'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '8'},
+          },
         },
         {
           type: EventType.TokenExpression,
@@ -925,19 +1049,34 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'my_number'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'my_number'},
+          },
           right: {
             type: EventType.MathOperation,
             operator: Operator.Add,
-            left: {type: TokenType.Number, value: '2'},
-            right: {type: TokenType.Number, value: '8'},
+            left: {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '2'},
+            },
+            right: {
+              type: EventType.TokenExpression,
+              token: {type: TokenType.Number, value: '8'},
+            },
           },
         },
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'my_second_number'},
-          right: {type: TokenType.Number, value: '162'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'my_second_number'},
+          },
+          right: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Number, value: '162'},
+          },
         },
       ]);
     });
@@ -962,7 +1101,10 @@ describe('parse()', () => {
         {
           type: EventType.Assignment,
           operator: Operator.AssignmentSplit,
-          left: {type: TokenType.Symbol, value: 'sum'},
+          left: {
+            type: EventType.TokenExpression,
+            token: {type: TokenType.Symbol, value: 'sum'},
+          },
           right: {
             type: EventType.FunctionExpression,
             parameters: [
@@ -973,8 +1115,14 @@ describe('parse()', () => {
               {
                 type: EventType.MathOperation,
                 operator: Operator.Add,
-                left: {type: TokenType.Symbol, value: 'x'},
-                right: {type: TokenType.Symbol, value: 'y'},
+                left: {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.Symbol, value: 'x'},
+                },
+                right: {
+                  type: EventType.TokenExpression,
+                  token: {type: TokenType.Symbol, value: 'y'},
+                },
               },
             ],
           },

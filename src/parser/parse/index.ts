@@ -7,4 +7,7 @@ export {
   FunctionCall,
   FunctionExpression,
   GenericExpression,
+  AssignmentExpression,
+  DictionaryExpression,
+  MemberExpression,
 } from './resolvers';
