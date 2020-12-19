@@ -8,6 +8,7 @@ const {toAST, Interpreter} = require('.');
 const interpreter = new Interpreter();
 
 const astMode = process.argv.some((arg) => arg === '--ast' || arg === '-a');
+const interactiveMode = process.argv.some((arg) => arg === '--interactive' || arg === '-i');
 const showVersion = process.argv.some((arg) => arg === '--version' || arg === '-v');
 const [,, inputFilePath] = process.argv.filter((arg) => !arg.startsWith('-'));
 
@@ -19,7 +20,7 @@ if (showVersion) {
 if (inputFilePath) {
   if (!existsSync(inputFilePath)) throw new Error(`${inputFilePath} does not exist.`);
   evaluateProgram(readFileSync(inputFilePath, 'utf-8'));
-  process.exit();
+  if (!interactiveMode) process.exit();
 }
 
 startInteractiveMode();

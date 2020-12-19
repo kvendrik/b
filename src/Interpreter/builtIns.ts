@@ -36,16 +36,51 @@ const buildIns: {
     return {type: TokenType.String, value: resultString};
   },
 
-  if([testEvent, handlerEvent], context) {
+  defined([assignmentLeftHand], context) {
+    if (
+      (assignmentLeftHand.type !== EventType.TokenExpression ||
+        assignmentLeftHand.token.type !== TokenType.Symbol) &&
+      assignmentLeftHand.type !== EventType.MemberExpression
+    ) {
+      throw new Error(
+        'Assignment left hand can only be a member expression or symbol.',
+      );
+    }
+
+    if (assignmentLeftHand.type === EventType.TokenExpression) {
+      return {
+        type: TokenType.Boolean,
+        value: Boolean(context.get(assignmentLeftHand.token.value))
+          ? BooleanValue.True
+          : BooleanValue.False,
+      };
+    }
+
+    const interpreter = new Interpreter(context);
+    let isDefined = false;
+
+    try {
+      isDefined = Boolean(interpreter.evaluate([assignmentLeftHand]));
+    } catch {}
+
+    return {
+      type: TokenType.Boolean,
+      value: isDefined ? BooleanValue.True : BooleanValue.False,
+    };
+  },
+
+  if([testEvent, consequentEvent, alternateEvent], context) {
     const interpreter = new Interpreter(context);
     const testResult = interpreter.evaluate([testEvent]);
+    let handlerEvent = consequentEvent;
 
     if (
       testResult == null ||
       testResult.type !== TokenType.Boolean ||
       testResult.value !== BooleanValue.True
     ) {
-      return;
+      if (alternateEvent == null) return;
+      handlerEvent = alternateEvent;
     }
 
     if (handlerEvent.type !== EventType.FunctionExpression) {

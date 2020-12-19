@@ -46,7 +46,17 @@ export default class Interpreter {
         case EventType.DictionaryExpression:
           return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
         case EventType.MemberExpression:
-          return this.handleMemberExpressionAction('get', event);
+          const tokenOrExpression = this.handleMemberExpressionAction(
+            'get',
+            event,
+          );
+          if (tokenOrExpression == null)
+            throw new Error(
+              `One or multiple keys on '${event.symbol.value}' are not defined`,
+            );
+          return tokenOrExpression.type === EventType.DictionaryExpression
+            ? {type: TokenType.String, value: ObfuscatedValue.Dictionary}
+            : tokenOrExpression;
         case EventType.Test:
           return this.handleTest(event);
         case EventType.MathOperation:
@@ -65,7 +75,7 @@ export default class Interpreter {
     type: 'get' | 'set',
     event: MemberExpression,
     newValueEvent?: Event,
-  ) {
+  ): Token | DictionaryExpression | void {
     if (type === 'set' && !newValueEvent)
       throw new Error('New value is requied when setting a dictionary value.');
 
@@ -74,22 +84,24 @@ export default class Interpreter {
     const subInterpreter = new Interpreter(this.context);
     let currentDictionaryExpression = dictionaryExpression;
 
-    for (const key of event.keys) {
+    for (const [index, key] of event.keys.entries()) {
+      const isLastKey = index === event.keys.length - 1;
+
       if (currentDictionaryExpression.type !== EventType.DictionaryExpression) {
-        throw new Error(`${event.symbol} is not a dictionary.`);
+        throw new Error(`${event.symbol.value} is not a dictionary.`);
       }
 
       const resolvedKey = subInterpreter.evaluate([key]);
 
       if (resolvedKey == null)
-        throw new Error(`Key on ${event.symbol} could not be resolved.`);
+        throw new Error(`Key on ${event.symbol.value} could not be resolved.`);
 
       const dictionaryPairEntry = [
         ...currentDictionaryExpression.body.entries(),
       ].find(([, {key}]) => key.value === resolvedKey.value);
 
       if (dictionaryPairEntry == null)
-        throw new Error(`Key on ${event.symbol} is undefined.`);
+        throw new Error(`Key on ${event.symbol.value} is undefined.`);
 
       const [dictionaryPairIndex, dictionaryPair] = dictionaryPairEntry;
 
@@ -102,12 +114,13 @@ export default class Interpreter {
       }
 
       if (dictionaryPair.value.type === EventType.DictionaryExpression) {
+        if (isLastKey) return dictionaryPair.value;
         currentDictionaryExpression = dictionaryPair.value;
         continue;
       }
 
       throw new Error(
-        `Could not resolve dictionary value on ${event.symbol}. Only token literals and dictionaries are valid values.`,
+        `Could not resolve dictionary value on '${event.symbol.value}'. Only token literals and dictionaries are valid values.`,
       );
     }
   }
@@ -353,6 +366,16 @@ export default class Interpreter {
           `Symbol ${left.symbol} does not specify a value to be assigned to it.`,
         );
       }
+
+      if (right.type === EventType.MemberExpression) {
+        const valueEvent = this.getMemberExpressionValueAsEvent(
+          left.symbol.value,
+          right,
+        );
+        this.handleMemberExpressionAction('set', left, valueEvent);
+        return;
+      }
+
       this.handleMemberExpressionAction('set', left, right);
       return;
     }
@@ -380,11 +403,18 @@ export default class Interpreter {
       case EventType.TokenExpression:
         this.context.set(leftToken.value, right);
         break;
+      case EventType.MemberExpression:
+        const valueEvent = this.getMemberExpressionValueAsEvent(
+          leftToken.value,
+          right,
+        );
+        this.context.set(leftToken.value, valueEvent);
+        break;
       case EventType.MathOperation:
         token = this.handleMathOperation(right);
         if (token == null)
           throw new Error(
-            `Math operation could not be resolved for ${leftToken.value}.`,
+            `Math operation could not be resolved for '${leftToken.value}'.`,
           );
         this.context.set(leftToken.value, {
           type: EventType.TokenExpression,
@@ -395,7 +425,7 @@ export default class Interpreter {
         token = this.handleFunctionCall(right);
         if (token == null)
           throw new Error(
-            `Call to ${right.symbol} resulted in void which cannot be assigned to ${leftToken.value}.`,
+            `Call to ${right.symbol} resulted in void which cannot be assigned to '${leftToken.value}'.`,
           );
         this.context.set(leftToken.value, {
           type: EventType.TokenExpression,
@@ -403,7 +433,22 @@ export default class Interpreter {
         });
         break;
       default:
-        throw new Error(`Right side of ${leftToken.value} is empty.`);
+        throw new Error(`Right side of '${leftToken.value}' is empty.`);
     }
+  }
+
+  private getMemberExpressionValueAsEvent(
+    leftHandSymbolValue: string,
+    expression: MemberExpression,
+  ): DictionaryExpression | TokenExpression {
+    const result = this.handleMemberExpressionAction('get', expression);
+    if (result == null)
+      throw new Error(`Right side of '${leftHandSymbolValue}' is empty.`);
+    return result.type === EventType.DictionaryExpression
+      ? result
+      : {
+          type: EventType.TokenExpression,
+          token: result,
+        };
   }
 }

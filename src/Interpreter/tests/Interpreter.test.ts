@@ -47,6 +47,31 @@ describe('Interpreter()', () => {
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({type: TokenType.Number, value: '4'});
     });
+
+    it('understands variable declarations using member expressions', () => {
+      const ast = toAST(`data = {"0": "dog"}; animal = data["0"]; animal`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: 'dog'});
+    });
+
+    it('understands variable declarations using member expressions on both sides', () => {
+      const ast = toAST(
+        `data = {"0": "dog"}; words = {"0": "dogs are great"}; data["0"] = words["0"]; data["0"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: 'dogs are great'});
+    });
+
+    it('understands member expressions on variables', () => {
+      const ast = toAST(
+        `regions = {"0": {"NL": "20m"}}; first = regions["0"]; first["NL"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: '20m'});
+    });
   });
 
   describe('functions', () => {
@@ -209,6 +234,19 @@ describe('Interpreter()', () => {
       expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
     });
 
+    it('understands returning dictionaries', () => {
+      const ast = toAST(`
+        get_data = {() {"0": "dog"}};
+        result = get_data();
+        result["0"]
+      `);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({type: TokenType.String, value: 'dog'});
+      // TODO
+      // Failing because `result` gets obfuscated to [Dictionary]
+    });
+
     it('understands breaks', () => {
       const ast = toAST(`
         say = {() break; "Hello!"};
@@ -294,13 +332,49 @@ describe('Interpreter()', () => {
 
     it('understands dictionary member expressions', () => {
       const ast = toAST(
-        `data = {"animals": {"0": "cat", "1": "dog"}}; data["animals"]["1"]`,
+        `program = {
+          "data": {
+            "countries_1": {
+              "CA": {
+                "population": "40m"
+              },
+              "NL": {
+                "population": "20m"
+              }
+            }
+          }
+        };
+        program["data"]["countries_1"]["CA"]["population"]`,
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
       expect(result).toEqual({
         type: TokenType.String,
-        value: 'dog',
+        value: '40m',
+      });
+    });
+
+    it('understands dictionary member expressions that return a dictionary', () => {
+      const ast = toAST(
+        `program = {
+          "data": {
+            "countries_1": {
+              "CA": {
+                "population": "40m"
+              },
+              "NL": {
+                "population": "20m"
+              }
+            }
+          }
+        };
+        program["data"]["countries_1"]["CA"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Dictionary,
       });
     });
 
@@ -370,6 +444,13 @@ describe('Interpreter()', () => {
         expect(result).toBeUndefined();
       });
 
+      it('returns alternate value if test doesn’t pass', () => {
+        const ast = toAST('if(1 > 2, {() "Hello!"}, {() "Hi!"});');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({type: TokenType.String, value: 'Hi!'});
+      });
+
       it('callback doesn’t execute if condition isn’t true', () => {
         const logSpy = jest.spyOn(console, 'log');
         logSpy.mockReset();
@@ -381,6 +462,58 @@ describe('Interpreter()', () => {
 
         expect(logSpy).not.toHaveBeenCalled();
         logSpy.mockRestore();
+      });
+    });
+
+    describe('defined()', () => {
+      it('returns boolean true if given symbol is defined', () => {
+        const ast = toAST('greeting = "hello"; defined(greeting)');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        });
+      });
+
+      it('returns boolean false if given symbol is undefined', () => {
+        const ast = toAST('defined(greeting)');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({
+          type: TokenType.Boolean,
+          value: BooleanValue.False,
+        });
+      });
+
+      it('returns boolean true if given member expression is defined', () => {
+        const ast = toAST('data = {"0": "cat"}; defined(data["0"])');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        });
+      });
+
+      it('returns boolean false if given member expression is undefined', () => {
+        const ast = toAST('data = {"0": "cat"}; defined(data["1"])');
+        const interpreter = new Interpreter();
+        const result = interpreter.evaluate(ast);
+        expect(result).toEqual({
+          type: TokenType.Boolean,
+          value: BooleanValue.False,
+        });
+      });
+
+      it('throws error if given value is not a symbol or member expression', () => {
+        const ast = toAST('defined({() "Hi!"})');
+        const interpreter = new Interpreter();
+        expect(() => interpreter.evaluate(ast)).toThrow(
+          new Error(
+            'Assignment left hand can only be a member expression or symbol.',
+          ),
+        );
       });
     });
 
