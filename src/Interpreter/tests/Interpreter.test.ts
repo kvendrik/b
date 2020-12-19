@@ -303,6 +303,42 @@ describe('Interpreter()', () => {
         value: 'dog',
       });
     });
+
+    it('understands dictionary member expressions with symbols', () => {
+      const ast = toAST(
+        `index = "1"; data = {"animals": {"0": "cat", "1": "dog"}}; data["animals"][index]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: 'dog',
+      });
+    });
+
+    it('understands dictionary member expressions with function calls', () => {
+      const ast = toAST(
+        `first = "1"; second = "2"; data = {"animals": {"0": "cat", "12": "dog"}}; data["animals"][concat(first, second)]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: 'dog',
+      });
+    });
+
+    it('understands assignments using member expressions', () => {
+      const ast = toAST(
+        `data = {"animals": {"0": "cat", "1": "dog"}}; data["animals"]["1"] = "raccoon"; data["animals"]["1"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual({
+        type: TokenType.String,
+        value: 'raccoon',
+      });
+    });
   });
 
   describe('builtIns', () => {

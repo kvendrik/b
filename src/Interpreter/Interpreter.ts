@@ -46,7 +46,7 @@ export default class Interpreter {
         case EventType.DictionaryExpression:
           return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
         case EventType.MemberExpression:
-          return this.handleMemberGrab(event);
+          return this.handleMemberExpressionAction('get', event);
         case EventType.Test:
           return this.handleTest(event);
         case EventType.MathOperation:
@@ -61,7 +61,14 @@ export default class Interpreter {
     }
   }
 
-  private handleMemberGrab(event: MemberExpression) {
+  private handleMemberExpressionAction(
+    type: 'get' | 'set',
+    event: MemberExpression,
+    newValueEvent?: Event,
+  ) {
+    if (type === 'set' && !newValueEvent)
+      throw new Error('New value is requied when setting a dictionary value.');
+
     const dictionaryExpression = this.resolveStoredValue(event.symbol);
 
     const subInterpreter = new Interpreter(this.context);
@@ -77,15 +84,21 @@ export default class Interpreter {
       if (resolvedKey == null)
         throw new Error(`Key on ${event.symbol} could not be resolved.`);
 
-      const dictionaryPair = currentDictionaryExpression.body.find(
-        ({key}) => key.value === resolvedKey.value,
-      );
+      const dictionaryPairEntry = [
+        ...currentDictionaryExpression.body.entries(),
+      ].find(([, {key}]) => key.value === resolvedKey.value);
 
-      if (dictionaryPair == null)
+      if (dictionaryPairEntry == null)
         throw new Error(`Key on ${event.symbol} is undefined.`);
 
+      const [dictionaryPairIndex, dictionaryPair] = dictionaryPairEntry;
+
       if (dictionaryPair.value.type === EventType.TokenExpression) {
-        return dictionaryPair.value.token;
+        if (type === 'get') return dictionaryPair.value.token;
+        currentDictionaryExpression.body[
+          dictionaryPairIndex
+        ].value = newValueEvent!;
+        return;
       }
 
       if (dictionaryPair.value.type === EventType.DictionaryExpression) {
@@ -335,6 +348,12 @@ export default class Interpreter {
 
   private handleAssignment({left, right}: AssignmentExpression) {
     if (left.type === EventType.MemberExpression) {
+      if (right == null) {
+        throw new Error(
+          `Symbol ${left.symbol} does not specify a value to be assigned to it.`,
+        );
+      }
+      this.handleMemberExpressionAction('set', left, right);
       return;
     }
 
