@@ -1,39 +1,58 @@
-import {Event, EventType, Token, TokenType, BooleanValue} from '../parser';
-import Interpreter, {Context} from './Interpreter';
+import {Event, EventType, TokenType, BooleanValue} from '../parser';
+import Interpreter, {
+  Context,
+  NonResolvableExpression,
+  tokenToExpression,
+} from './Interpreter';
 
 const buildIns: {
-  [name: string]: (parameters: Event[], context: Context) => Token | void;
+  [name: string]: (
+    parameters: Event[],
+    context: Context,
+  ) => NonResolvableExpression | void;
 } = {
   log: (parameters, context) => {
-    const tokens = parameters.map((parameter) => {
+    const expressions = parameters.map((parameter) => {
       const interpreter = new Interpreter(context);
       return interpreter.evaluate([parameter]);
     });
-    console.log(...tokens.map((token) => (token ? token.value : null)));
+    console.log(
+      ...expressions.map((expression) => {
+        if (expression == null) return null;
+        const {value} = Interpreter.toSingleToken(expression);
+        return value;
+      }),
+    );
   },
 
   concat(parameters, context) {
-    const tokens = parameters.map((parameter) => {
+    const expressions = parameters.map((parameter) => {
       const interpreter = new Interpreter(context);
       return interpreter.evaluate([parameter]);
     });
 
     if (
-      tokens.some(
-        (token) =>
-          token == null ||
-          (token.type !== TokenType.String && token.type !== TokenType.Number),
+      expressions.some(
+        (expression) =>
+          expression == null ||
+          expression.type !== EventType.TokenExpression ||
+          (expression.token.type !== TokenType.String &&
+            expression.token.type !== TokenType.Number),
       )
     ) {
       throw new Error('concat() can only be used with strings');
     }
 
-    const resolvedTokens = tokens as Token[];
-    const resultString = resolvedTokens.reduce(
-      (current, {value}) => (current !== '' ? `${current}${value}` : value),
-      '',
-    );
-    return {type: TokenType.String, value: resultString};
+    return tokenToExpression({
+      type: TokenType.String,
+      value: expressions.reduce(
+        (current, expression) =>
+          expression == null
+            ? current
+            : `${current}${Interpreter.toSingleToken(expression).value}`,
+        '',
+      ),
+    });
   },
 
   defined([assignmentLeftHand], context) {
@@ -48,12 +67,12 @@ const buildIns: {
     }
 
     if (assignmentLeftHand.type === EventType.TokenExpression) {
-      return {
+      return tokenToExpression({
         type: TokenType.Boolean,
         value: Boolean(context.get(assignmentLeftHand.token.value))
           ? BooleanValue.True
           : BooleanValue.False,
-      };
+      });
     }
 
     const interpreter = new Interpreter(context);
@@ -63,10 +82,10 @@ const buildIns: {
       isDefined = Boolean(interpreter.evaluate([assignmentLeftHand]));
     } catch {}
 
-    return {
+    return tokenToExpression({
       type: TokenType.Boolean,
       value: isDefined ? BooleanValue.True : BooleanValue.False,
-    };
+    });
   },
 
   if([testEvent, consequentEvent, alternateEvent], context) {
@@ -74,10 +93,14 @@ const buildIns: {
     const testResult = interpreter.evaluate([testEvent]);
     let handlerEvent = consequentEvent;
 
+    if (testResult == null) throw new Error('Test could not be resolved.');
+    if (testResult.type !== EventType.TokenExpression)
+      throw new Error(`A ${testResult.type} is not a valid test.`);
+
     if (
       testResult == null ||
-      testResult.type !== TokenType.Boolean ||
-      testResult.value !== BooleanValue.True
+      testResult.token.type !== TokenType.Boolean ||
+      testResult.token.value !== BooleanValue.True
     ) {
       if (alternateEvent == null) return;
       handlerEvent = alternateEvent;
@@ -101,10 +124,14 @@ const buildIns: {
     const interpreter = new Interpreter(context);
     let testResult = interpreter.evaluate([testEvent]);
 
+    if (testResult == null) throw new Error('Test could not be resolved.');
+    if (testResult.type !== EventType.TokenExpression)
+      throw new Error(`A ${testResult.type} is not a valid test.`);
+
     if (
       testResult == null ||
-      testResult.type !== TokenType.Boolean ||
-      testResult.value !== BooleanValue.True
+      testResult.token.type !== TokenType.Boolean ||
+      testResult.token.value !== BooleanValue.True
     ) {
       return;
     }

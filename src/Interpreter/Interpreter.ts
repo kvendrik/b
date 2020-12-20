@@ -26,6 +26,10 @@ type StoredExpression =
   | FunctionExpression;
 
 export type Context = Map<string, StoredExpression>;
+export type NonResolvableExpression =
+  | TokenExpression
+  | DictionaryExpression
+  | FunctionExpression;
 
 enum Keyword {
   Break = 'break',
@@ -34,7 +38,18 @@ enum Keyword {
 export default class Interpreter {
   constructor(private context: Context = new Map<string, StoredExpression>()) {}
 
-  evaluate(events: Event[]): Token | void {
+  static toSingleToken(event: NonResolvableExpression): Token {
+    switch (event.type) {
+      case EventType.FunctionExpression:
+        return {type: TokenType.String, value: ObfuscatedValue.Function};
+      case EventType.DictionaryExpression:
+        return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
+      default:
+        return event.token;
+    }
+  }
+
+  evaluate(events: Event[]): NonResolvableExpression | void {
     for (const [index, event] of events.entries()) {
       const isLastEvent = index === events.length - 1;
       switch (event.type) {
@@ -42,28 +57,22 @@ export default class Interpreter {
           this.handleAssignment(event);
           break;
         case EventType.FunctionExpression:
-          return {type: TokenType.String, value: ObfuscatedValue.Function};
         case EventType.DictionaryExpression:
-          return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
+          return event;
         case EventType.MemberExpression:
-          const tokenOrExpression = this.handleMemberExpressionAction(
-            'get',
-            event,
-          );
-          if (tokenOrExpression == null)
+          const expression = this.handleMemberExpressionAction('get', event);
+          if (expression == null)
             throw new Error(
               `One or multiple keys on '${event.symbol.value}' are not defined`,
             );
-          return tokenOrExpression.type === EventType.DictionaryExpression
-            ? {type: TokenType.String, value: ObfuscatedValue.Dictionary}
-            : tokenOrExpression;
+          return expression;
         case EventType.Test:
           return this.handleTest(event);
         case EventType.MathOperation:
           return this.handleMathOperation(event);
         case EventType.TokenExpression:
           if (event.token.value === Keyword.Break) return;
-          return this.handleTokenExpression(event);
+          return this.resolveStoredValue(event.token);
         case EventType.FunctionCall:
           const result = this.handleFunctionCall(event);
           if (isLastEvent) return result;
@@ -73,40 +82,53 @@ export default class Interpreter {
 
   private handleMemberExpressionAction(
     type: 'get' | 'set',
-    event: MemberExpression,
+    memberExpression: MemberExpression,
     newValueEvent?: Event,
-  ): Token | DictionaryExpression | void {
+  ): TokenExpression | DictionaryExpression | void {
     if (type === 'set' && !newValueEvent)
       throw new Error('New value is requied when setting a dictionary value.');
 
-    const dictionaryExpression = this.resolveStoredValue(event.symbol);
+    const dictionaryExpression = this.resolveStoredValue(
+      memberExpression.symbol,
+    );
 
     const subInterpreter = new Interpreter(this.context);
     let currentDictionaryExpression = dictionaryExpression;
 
-    for (const [index, key] of event.keys.entries()) {
-      const isLastKey = index === event.keys.length - 1;
+    for (const [index, key] of memberExpression.keys.entries()) {
+      const isLastKey = index === memberExpression.keys.length - 1;
 
       if (currentDictionaryExpression.type !== EventType.DictionaryExpression) {
-        throw new Error(`${event.symbol.value} is not a dictionary.`);
+        throw new Error(
+          `${memberExpression.symbol.value} is not a dictionary.`,
+        );
       }
 
       const resolvedKey = subInterpreter.evaluate([key]);
 
       if (resolvedKey == null)
-        throw new Error(`Key on ${event.symbol.value} could not be resolved.`);
+        throw new Error(
+          `Key on ${memberExpression.symbol.value} could not be resolved.`,
+        );
+
+      if (resolvedKey.type !== EventType.TokenExpression)
+        throw new Error(
+          `Key on ${memberExpression.symbol.value} is of unsupported type ${resolvedKey.type}.`,
+        );
 
       const dictionaryPairEntry = [
         ...currentDictionaryExpression.body.entries(),
-      ].find(([, {key}]) => key.value === resolvedKey.value);
+      ].find(([, {key}]) => key.value === resolvedKey.token.value);
 
       if (dictionaryPairEntry == null)
-        throw new Error(`Key on ${event.symbol.value} is undefined.`);
+        throw new Error(
+          `Key on ${memberExpression.symbol.value} is undefined.`,
+        );
 
       const [dictionaryPairIndex, dictionaryPair] = dictionaryPairEntry;
 
       if (dictionaryPair.value.type === EventType.TokenExpression) {
-        if (type === 'get') return dictionaryPair.value.token;
+        if (type === 'get') return dictionaryPair.value;
         currentDictionaryExpression.body[
           dictionaryPairIndex
         ].value = newValueEvent!;
@@ -120,12 +142,12 @@ export default class Interpreter {
       }
 
       throw new Error(
-        `Could not resolve dictionary value on '${event.symbol.value}'. Only token literals and dictionaries are valid values.`,
+        `Could not resolve dictionary value on '${memberExpression.symbol.value}'. Only token literals and dictionaries are valid values.`,
       );
     }
   }
 
-  private handleTest(event: GenericExpression): Token | void {
+  private handleTest(event: GenericExpression): TokenExpression | void {
     if (event.right == null) {
       throw new Error('Test missing right side.');
     }
@@ -160,7 +182,7 @@ export default class Interpreter {
         leftExpression.token.type === rightExpression.token.type &&
         leftExpression.token.value === rightExpression.token.value;
 
-      return {
+      return tokenToExpression({
         type: TokenType.Boolean,
         value:
           event.operator === Operator.Equals
@@ -170,28 +192,28 @@ export default class Interpreter {
             : testResult === false
             ? BooleanValue.True
             : BooleanValue.False,
-      };
+      });
     }
 
     const {left, right} = this.validateNumericOperation(leftToken, rightToken);
 
     switch (event.operator) {
       case Operator.BiggerThan:
-        return {
+        return tokenToExpression({
           type: TokenType.Boolean,
           value:
             Number(left.value) > Number(right.value)
               ? BooleanValue.True
               : BooleanValue.False,
-        };
+        });
       case Operator.SmallerThan:
-        return {
+        return tokenToExpression({
           type: TokenType.Boolean,
           value:
             Number(left.value) < Number(right.value)
               ? BooleanValue.True
               : BooleanValue.False,
-        };
+        });
     }
   }
 
@@ -221,7 +243,7 @@ export default class Interpreter {
     operator,
     left,
     right,
-  }: GenericExpression): Token | void {
+  }: GenericExpression): TokenExpression | void {
     if (right == null) {
       throw new Error('Operation missing right side.');
     }
@@ -238,7 +260,7 @@ export default class Interpreter {
     operator: Operator,
     leftToken: Token,
     rightToken: Token,
-  ): Token {
+  ): TokenExpression {
     const {left, right} = this.validateNumericOperation(leftToken, rightToken);
 
     let outcome = null;
@@ -263,10 +285,16 @@ export default class Interpreter {
         throw new Error(`Unknown operator ${operator}`);
     }
 
-    return {type: TokenType.Number, value: outcome.toString()};
+    return tokenToExpression({
+      type: TokenType.Number,
+      value: outcome.toString(),
+    });
   }
 
-  private handleFunctionCall({symbol, parameters}: FunctionCall): Token | void {
+  private handleFunctionCall({
+    symbol,
+    parameters,
+  }: FunctionCall): NonResolvableExpression | void {
     const builtIn = builtIns[symbol];
 
     if (builtIn) {
@@ -290,7 +318,7 @@ export default class Interpreter {
     symbol: string,
     {parameters, body}: FunctionExpression,
     callParameters: Event[],
-  ): Token | void {
+  ): NonResolvableExpression | void {
     if (parameters && parameters.length > callParameters.length) {
       throw new Error(`Call to ${symbol} is missing parameters.`);
     }
@@ -315,34 +343,17 @@ export default class Interpreter {
       parameters == null
         ? this.context
         : [...parameters.entries()].reduce((current, [index, {value}]) => {
-            const parameterValue = resolvedParameters[index];
-            if (!parameterValue) {
+            const parameterExpression = resolvedParameters[index];
+            if (!parameterExpression) {
               throw new Error(
                 `Call to ${symbol} has parameter that resolved to incompatible value void.`,
               );
             }
-            return current.set(value, {
-              type: EventType.TokenExpression,
-              token: parameterValue,
-            });
+            return current.set(value, parameterExpression);
           }, this.context);
 
     const subInterpreter = new Interpreter(initialContext);
     return subInterpreter.evaluate(body);
-  }
-
-  private handleTokenExpression({token}: TokenExpression) {
-    const expression = this.resolveStoredValue(token);
-
-    if (expression.type === EventType.TokenExpression) {
-      return expression.token;
-    }
-
-    if (expression.type === EventType.DictionaryExpression) {
-      return {type: TokenType.String, value: ObfuscatedValue.Dictionary};
-    }
-
-    return {type: TokenType.String, value: ObfuscatedValue.Function};
   }
 
   private resolveStoredValue({type, value}: Token): StoredExpression {
@@ -395,7 +406,7 @@ export default class Interpreter {
       );
     }
 
-    let token;
+    let tokenExpression;
 
     switch (right.type) {
       case EventType.FunctionExpression:
@@ -411,26 +422,20 @@ export default class Interpreter {
         this.context.set(leftToken.value, valueEvent);
         break;
       case EventType.MathOperation:
-        token = this.handleMathOperation(right);
-        if (token == null)
+        tokenExpression = this.handleMathOperation(right);
+        if (tokenExpression == null)
           throw new Error(
             `Math operation could not be resolved for '${leftToken.value}'.`,
           );
-        this.context.set(leftToken.value, {
-          type: EventType.TokenExpression,
-          token,
-        });
+        this.context.set(leftToken.value, tokenExpression);
         break;
       case EventType.FunctionCall:
-        token = this.handleFunctionCall(right);
-        if (token == null)
+        tokenExpression = this.handleFunctionCall(right);
+        if (tokenExpression == null)
           throw new Error(
             `Call to ${right.symbol} resulted in void which cannot be assigned to '${leftToken.value}'.`,
           );
-        this.context.set(leftToken.value, {
-          type: EventType.TokenExpression,
-          token,
-        });
+        this.context.set(leftToken.value, tokenExpression);
         break;
       default:
         throw new Error(`Right side of '${leftToken.value}' is empty.`);
@@ -444,11 +449,13 @@ export default class Interpreter {
     const result = this.handleMemberExpressionAction('get', expression);
     if (result == null)
       throw new Error(`Right side of '${leftHandSymbolValue}' is empty.`);
-    return result.type === EventType.DictionaryExpression
-      ? result
-      : {
-          type: EventType.TokenExpression,
-          token: result,
-        };
+    return result;
   }
+}
+
+export function tokenToExpression<T>(token: Token<T>) {
+  return {
+    type: EventType.TokenExpression,
+    token,
+  } as TokenExpression<T>;
 }

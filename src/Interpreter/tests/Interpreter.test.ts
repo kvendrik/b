@@ -1,4 +1,4 @@
-import Interpreter, {ObfuscatedValue} from '../Interpreter';
+import Interpreter, {ObfuscatedValue, tokenToExpression} from '../Interpreter';
 import {toAST, TokenType, BooleanValue} from '../../parser';
 
 describe('Interpreter()', () => {
@@ -7,14 +7,18 @@ describe('Interpreter()', () => {
       const ast = toAST(`2 * 2`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands symbols in operations', () => {
       const ast = toAST(`count = 2; 2 * count`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     // TODO
@@ -22,14 +26,18 @@ describe('Interpreter()', () => {
       const ast = toAST(`2 + 2 * 4`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '10'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '10'}),
+      );
     });
 
     it('understands remainder operations', () => {
       const ast = toAST(`10 % 5`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '0'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '0'}),
+      );
     });
   });
 
@@ -38,21 +46,27 @@ describe('Interpreter()', () => {
       const ast = toAST(`count = 2; count`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '2'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '2'}),
+      );
     });
 
     it('understands variable declarations using function calls', () => {
       const ast = toAST(`sum = {() 2 * 2}; count = sum(); count`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands variable declarations using member expressions', () => {
       const ast = toAST(`data = {"0": "dog"}; animal = data["0"]; animal`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: 'dog'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: 'dog'}),
+      );
     });
 
     it('understands variable declarations using member expressions on both sides', () => {
@@ -61,7 +75,9 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: 'dogs are great'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: 'dogs are great'}),
+      );
     });
 
     it('understands member expressions on variables', () => {
@@ -70,7 +86,9 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: '20m'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: '20m'}),
+      );
     });
   });
 
@@ -79,41 +97,42 @@ describe('Interpreter()', () => {
       const ast = toAST(`{(x, y) x * y}`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: ObfuscatedValue.Function,
-      });
+      expect(result).toEqual(ast[0]);
     });
 
     it('understands function declarations', () => {
+      const [functionAST] = toAST('{(x, y) x * y}');
       const ast = toAST(`sum = {(x, y) x * y}; sum`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: ObfuscatedValue.Function,
-      });
+      expect(result).toEqual(functionAST);
     });
 
     it('understands function calls', () => {
       const ast = toAST(`sum = {() 2 * 2}; sum()`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands function calls with arguments', () => {
       const ast = toAST(`sum = {(x, y) x * y}; sum(2, 2)`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands symbols as arguments', () => {
       const ast = toAST(`count = 2; sum = {(x, y) x * y}; sum(2, count)`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands symbols derived from calls as arguments', () => {
@@ -122,24 +141,30 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '8'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '8'}),
+      );
     });
 
     it('understands function calls as arguments', () => {
       const ast = toAST(`add = {() 2 + 2}; sum = {(x) x * 2}; sum(add())`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '8'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '8'}),
+      );
     });
 
     it('understands tests as arguments', () => {
       const ast = toAST(`add = {(x) x}; add(2 > 1)`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.Boolean,
-        value: BooleanValue.True,
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        }),
+      );
     });
 
     it('keeps previously defined variables accessible', () => {
@@ -152,7 +177,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('allows for multiline function bodies', () => {
@@ -165,7 +192,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '7'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '7'}),
+      );
     });
 
     it('scopes variables to deepest function', () => {
@@ -193,7 +222,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('supports nested function calls', () => {
@@ -208,7 +239,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '8'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '8'}),
+      );
     });
 
     it('supports nested functions', () => {
@@ -221,7 +254,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.Number, value: '4'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.Number, value: '4'}),
+      );
     });
 
     it('understands returning literals', () => {
@@ -231,7 +266,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: 'Hello!'}),
+      );
     });
 
     it('understands returning dictionaries', () => {
@@ -242,9 +279,9 @@ describe('Interpreter()', () => {
       `);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: 'dog'});
-      // TODO
-      // Failing because `result` gets obfuscated to [Dictionary]
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: 'dog'}),
+      );
     });
 
     it('understands breaks', () => {
@@ -263,7 +300,9 @@ describe('Interpreter()', () => {
       const ast = toAST(`"Hello!"`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
+      expect(result).toEqual(
+        tokenToExpression({type: TokenType.String, value: 'Hello!'}),
+      );
     });
   });
 
@@ -272,40 +311,60 @@ describe('Interpreter()', () => {
       const ast = toAST(`2 > 1`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.Boolean,
-        value: BooleanValue.True,
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        }),
+      );
     });
 
     it('understands smaller than tests', () => {
       const ast = toAST(`count = 2; count < 10`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.Boolean,
-        value: BooleanValue.True,
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        }),
+      );
     });
 
     it('understands equality checks', () => {
       const ast = toAST(`"Hello!" == "ello!"`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.Boolean,
-        value: BooleanValue.False,
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.False,
+        }),
+      );
     });
 
     it('understands negative equality checks', () => {
       const ast = toAST(`"Hello!" != "ello!"`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.Boolean,
-        value: BooleanValue.True,
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        }),
+      );
+    });
+
+    it('understands member expressions', () => {
+      const ast = toAST(`animals = {"0": "dog"}; animals["0"] == "dog"`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.Boolean,
+          value: BooleanValue.True,
+        }),
+      );
     });
   });
 
@@ -314,20 +373,15 @@ describe('Interpreter()', () => {
       const ast = toAST(`{"animal": "cat"}`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: ObfuscatedValue.Dictionary,
-      });
+      expect(result).toEqual(ast[0]);
     });
 
     it('understands dictionary assignments', () => {
+      const [dictionaryAST] = toAST('{"animal": "cat"}');
       const ast = toAST(`data = {"animal": "cat"}; data`);
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: ObfuscatedValue.Dictionary,
-      });
+      expect(result).toEqual(dictionaryAST);
     });
 
     it('understands dictionary member expressions', () => {
@@ -348,13 +402,16 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: '40m',
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.String,
+          value: '40m',
+        }),
+      );
     });
 
     it('understands dictionary member expressions that return a dictionary', () => {
+      const [expectedAST] = toAST('{"population": "40m"}');
       const ast = toAST(
         `program = {
           "data": {
@@ -372,10 +429,7 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: ObfuscatedValue.Dictionary,
-      });
+      expect(result).toEqual(expectedAST);
     });
 
     it('understands dictionary member expressions with symbols', () => {
@@ -384,10 +438,12 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: 'dog',
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.String,
+          value: 'dog',
+        }),
+      );
     });
 
     it('understands dictionary member expressions with function calls', () => {
@@ -396,10 +452,12 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
-        type: TokenType.String,
-        value: 'dog',
-      });
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.String,
+          value: 'dog',
+        }),
+      );
     });
 
     it('understands assignments using member expressions', () => {
@@ -408,9 +466,43 @@ describe('Interpreter()', () => {
       );
       const interpreter = new Interpreter();
       const result = interpreter.evaluate(ast);
-      expect(result).toEqual({
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.String,
+          value: 'raccoon',
+        }),
+      );
+    });
+  });
+
+  describe('toSingleToken()', () => {
+    it('reduces token expression to single token', () => {
+      const ast = toAST(`"Hello!"`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result && Interpreter.toSingleToken(result)).toEqual({
         type: TokenType.String,
-        value: 'raccoon',
+        value: 'Hello!',
+      });
+    });
+
+    it('obfuscates functions', () => {
+      const ast = toAST(`{() "Hello!"}`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result && Interpreter.toSingleToken(result)).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Function,
+      });
+    });
+
+    it('obfuscates dictionaries', () => {
+      const ast = toAST(`{"greeting": "Hello!"}`);
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result && Interpreter.toSingleToken(result)).toEqual({
+        type: TokenType.String,
+        value: ObfuscatedValue.Dictionary,
       });
     });
   });
@@ -434,7 +526,9 @@ describe('Interpreter()', () => {
         const ast = toAST('if(2 > 1, {() "Hello!"});');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({type: TokenType.String, value: 'Hello!'});
+        expect(result).toEqual(
+          tokenToExpression({type: TokenType.String, value: 'Hello!'}),
+        );
       });
 
       it('doesn’t return given value if test doesn’t pass', () => {
@@ -448,7 +542,9 @@ describe('Interpreter()', () => {
         const ast = toAST('if(1 > 2, {() "Hello!"}, {() "Hi!"});');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({type: TokenType.String, value: 'Hi!'});
+        expect(result).toEqual(
+          tokenToExpression({type: TokenType.String, value: 'Hi!'}),
+        );
       });
 
       it('callback doesn’t execute if condition isn’t true', () => {
@@ -470,40 +566,48 @@ describe('Interpreter()', () => {
         const ast = toAST('greeting = "hello"; defined(greeting)');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({
-          type: TokenType.Boolean,
-          value: BooleanValue.True,
-        });
+        expect(result).toEqual(
+          tokenToExpression({
+            type: TokenType.Boolean,
+            value: BooleanValue.True,
+          }),
+        );
       });
 
       it('returns boolean false if given symbol is undefined', () => {
         const ast = toAST('defined(greeting)');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({
-          type: TokenType.Boolean,
-          value: BooleanValue.False,
-        });
+        expect(result).toEqual(
+          tokenToExpression({
+            type: TokenType.Boolean,
+            value: BooleanValue.False,
+          }),
+        );
       });
 
       it('returns boolean true if given member expression is defined', () => {
         const ast = toAST('data = {"0": "cat"}; defined(data["0"])');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({
-          type: TokenType.Boolean,
-          value: BooleanValue.True,
-        });
+        expect(result).toEqual(
+          tokenToExpression({
+            type: TokenType.Boolean,
+            value: BooleanValue.True,
+          }),
+        );
       });
 
       it('returns boolean false if given member expression is undefined', () => {
         const ast = toAST('data = {"0": "cat"}; defined(data["1"])');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({
-          type: TokenType.Boolean,
-          value: BooleanValue.False,
-        });
+        expect(result).toEqual(
+          tokenToExpression({
+            type: TokenType.Boolean,
+            value: BooleanValue.False,
+          }),
+        );
       });
 
       it('throws error if given value is not a symbol or member expression', () => {
@@ -552,7 +656,9 @@ describe('Interpreter()', () => {
         const ast = toAST('concat("Hello ", "there!");');
         const interpreter = new Interpreter();
         const result = interpreter.evaluate(ast);
-        expect(result).toEqual({type: TokenType.String, value: 'Hello there!'});
+        expect(result).toEqual(
+          tokenToExpression({type: TokenType.String, value: 'Hello there!'}),
+        );
       });
     });
   });

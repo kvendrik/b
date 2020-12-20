@@ -74,19 +74,19 @@ current_state = "state_0";
 while(current_state != "stop", {()
   value = tape[caret_position];
 
-  log(current_state);
-  log(program["state_0"]["1"]);
-
   result = if(
     defined(program[current_state][value]),
-    {() program[current_state][value]},
-    {() program[current_state]["B"]}
+    program[current_state][value],
+    program[current_state]["B"]
   );
 
-  tape[caretPosition] = result["write"];
+  tape[caret_position] = result["write"];
 
-  if(result["move"] == "right", {() caretPosition = caretPosition + 1});
-  if(result["move"] == "left", {() caretPosition = caretPosition - 1});
+  if(result["move"] == "right", {() caret_position = caret_position + 1});
+  if(result["move"] == "left", {() caret_position = caret_position - 1});
 
-  currentState = result["to_state"];
+  current_state = result["to_state"];
+  current_state = "stop";
 });
+
+log(tape);

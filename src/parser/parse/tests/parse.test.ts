@@ -113,6 +113,48 @@ describe('parse()', () => {
         },
       ]);
     });
+
+    it('can be used in tests', () => {
+      expect(
+        parse([
+          {type: TokenType.Symbol, value: 'countries'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: ']'},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Special, value: '='},
+          {type: TokenType.Symbol, value: 'population_data'},
+          {type: TokenType.Special, value: '['},
+          {type: TokenType.String, value: 'CA'},
+          {type: TokenType.Special, value: ']'},
+        ]),
+      ).toEqual([
+        {
+          type: EventType.Test,
+          operator: Operator.Equals,
+          left: {
+            type: EventType.MemberExpression,
+            symbol: {type: TokenType.Symbol, value: 'countries'},
+            keys: [
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.String, value: 'CA'},
+              },
+            ],
+          },
+          right: {
+            type: EventType.MemberExpression,
+            symbol: {type: TokenType.Symbol, value: 'population_data'},
+            keys: [
+              {
+                type: EventType.TokenExpression,
+                token: {type: TokenType.String, value: 'CA'},
+              },
+            ],
+          },
+        },
+      ]);
+    });
   });
 
   describe('dictionary expressions', () => {

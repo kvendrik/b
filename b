@@ -38,8 +38,8 @@ function startInteractiveMode() {
     rl.question('>>> ', (commandOrProgram) => {
       if (commandOrProgram === 'exit') process.exit();
 
-      const result = evaluateProgram(commandOrProgram);
-      if (result) console.log(result.value);
+      const resultExpression = evaluateProgram(commandOrProgram);
+      if (resultExpression) console.log(Interpreter.toSingleToken(resultExpression).value);
 
       nextPrompt();
     });
