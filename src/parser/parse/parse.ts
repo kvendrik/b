@@ -50,7 +50,7 @@ export function parseGroup(tokens: Token[]): Event | null {
     } as TokenExpression;
   }
 
-  let assignmentLeftHandEvent: AssignmentExpression['left'] | null = null;
+  let leftHandEvent: AssignmentExpression['left'] | null = null;
   let currentReader:
     | MathOperationReader
     | FunctionCallReader
@@ -63,17 +63,26 @@ export function parseGroup(tokens: Token[]): Event | null {
     const isEndOfInput = index === tokens.length - 1;
     const prevToken = index === 0 ? null : tokens[index - 1];
 
-    if (assignmentLeftHandEvent) {
+    if (leftHandEvent !== null) {
+      const testEvent = resolveTestEvent(
+        {type, value},
+        leftHandEvent,
+        index,
+        tokens,
+      );
+
+      if (testEvent) return testEvent;
+
       const assignmentEvent = resolveAssignmentEvent(
         {type, value},
-        assignmentLeftHandEvent,
+        leftHandEvent,
         index,
         tokens,
       );
 
       if (assignmentEvent) return assignmentEvent;
 
-      return assignmentLeftHandEvent;
+      return leftHandEvent;
     }
 
     if (currentReader !== null && prevToken) {
@@ -85,8 +94,8 @@ export function parseGroup(tokens: Token[]): Event | null {
       );
 
       if (event) {
-        if (currentReader.canBeAssignmentLeftHand && !isEndOfInput) {
-          assignmentLeftHandEvent = event as AssignmentExpression['left'];
+        if (currentReader.canBeLeftHandEvent && !isEndOfInput) {
+          leftHandEvent = event as AssignmentExpression['left'];
           continue;
         }
         return event;
@@ -139,7 +148,15 @@ export function parseGroup(tokens: Token[]): Event | null {
       continue;
     }
 
-    const testEvent = resolveTestEvent({type, value}, prevToken, index, tokens);
+    const testEvent = resolveTestEvent(
+      {type, value},
+      {
+        type: EventType.TokenExpression,
+        token: prevToken,
+      } as TokenExpression<TokenType.Symbol>,
+      index,
+      tokens,
+    );
     if (testEvent) return testEvent;
 
     const assignmentEvent = resolveAssignmentEvent(

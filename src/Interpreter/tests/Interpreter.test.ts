@@ -473,6 +473,20 @@ describe('Interpreter()', () => {
         }),
       );
     });
+
+    it('understands assignments using member expressions to new keys', () => {
+      const ast = toAST(
+        `data = {"animals": {"0": "cat", "1": "dog"}}; data["animals"]["2"] = "raccoon"; data["animals"]["2"]`,
+      );
+      const interpreter = new Interpreter();
+      const result = interpreter.evaluate(ast);
+      expect(result).toEqual(
+        tokenToExpression({
+          type: TokenType.String,
+          value: 'raccoon',
+        }),
+      );
+    });
   });
 
   describe('toSingleToken()', () => {

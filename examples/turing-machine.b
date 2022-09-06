@@ -52,7 +52,7 @@ program = {
       "to_state": "state_4"
     }
   },
-  "state_3": {
+  "state_4": {
     "0": {
       "write": "0",
       "move": "right",
@@ -66,27 +66,38 @@ program = {
   }
 };
 
-tape = {"0": "1", "1": "1", "2": "2"};
+tape = {"0": "1", "1": "1", "2": "1"};
 
 caret_position = 0;
 current_state = "state_0";
 
 while(current_state != "stop", {()
-  value = tape[caret_position];
+  log(current_state);
 
-  result = if(
-    defined(program[current_state][value]),
-    program[current_state][value],
-    program[current_state]["B"]
+  if(
+    defined(tape[caret_position]),
+    {()
+      value = tape[caret_position];
+
+      result = if(
+        defined(program[current_state][value]),
+        program[current_state][value],
+        program[current_state]["0"]
+      );
+
+      tape[caret_position] = result["write"];
+    },
+    {()
+      log(current_state, value, tape);
+      result = program[current_state]["B"];
+      tape[caret_position] = result["write"];
+    }
   );
-
-  tape[caret_position] = result["write"];
 
   if(result["move"] == "right", {() caret_position = caret_position + 1});
   if(result["move"] == "left", {() caret_position = caret_position - 1});
 
   current_state = result["to_state"];
-  current_state = "stop";
 });
 
 log(tape);

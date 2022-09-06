@@ -87,7 +87,7 @@ export type Event =
   | MemberExpression;
 
 interface ExpressionReader {
-  canBeAssignmentLeftHand: boolean;
+  canBeLeftHandEvent: boolean;
   read(
     token: Token,
     prevToken: Token,
@@ -97,7 +97,7 @@ interface ExpressionReader {
 }
 
 export class MemberExpressionReader implements ExpressionReader {
-  public canBeAssignmentLeftHand = true;
+  public canBeLeftHandEvent = true;
   private event: MemberExpression;
   private currentKeyTokens: Token[] = [];
   private inExpression = true;
@@ -157,7 +157,7 @@ export class MemberExpressionReader implements ExpressionReader {
 }
 
 export class DictionaryExpressionReader implements ExpressionReader {
-  public canBeAssignmentLeftHand = false;
+  public canBeLeftHandEvent = false;
   private event: DictionaryExpression;
   private currentValueTokens: Token[] = [];
   private parsingType: 'key' | 'value' = 'key';
@@ -233,7 +233,7 @@ export class DictionaryExpressionReader implements ExpressionReader {
 }
 
 export class FunctionExpressionReader implements ExpressionReader {
-  public canBeAssignmentLeftHand = false;
+  public canBeLeftHandEvent = false;
   private event: FunctionExpression;
 
   static isFunctionExpressionStart({value}: Token, prevToken: Token) {
@@ -267,7 +267,7 @@ export class FunctionExpressionReader implements ExpressionReader {
 }
 
 export class FunctionCallReader implements ExpressionReader {
-  public canBeAssignmentLeftHand = false;
+  public canBeLeftHandEvent = false;
   private depth = 0;
   private parameterTokens: Token[][] = [[]];
   private event: FunctionCall;
@@ -317,7 +317,7 @@ export class FunctionCallReader implements ExpressionReader {
 }
 
 export class MathOperationReader implements ExpressionReader {
-  public canBeAssignmentLeftHand = false;
+  public canBeLeftHandEvent = false;
   private event: GenericExpression;
 
   static isMathOperationStart({type}: Token) {
@@ -389,7 +389,7 @@ export function resolveAssignmentEvent(
 
 export function resolveTestEvent(
   {value}: Token,
-  prevToken: Token,
+  left: AssignmentExpression['left'],
   index: number,
   tokens: Token[],
 ): Event | void {
@@ -398,10 +398,7 @@ export function resolveTestEvent(
     return {
       type: EventType.Test,
       operator: Operator.NegativeEquals,
-      left: {
-        type: EventType.TokenExpression,
-        token: prevToken,
-      } as TokenExpression,
+      left,
       right:
         valueTokens.length === 1
           ? ({
@@ -422,10 +419,7 @@ export function resolveTestEvent(
       return {
         type: EventType.Test,
         operator: Operator.Equals,
-        left: {
-          type: EventType.TokenExpression,
-          token: prevToken,
-        } as TokenExpression,
+        left,
         right:
           valueTokens.length === 1
             ? ({
@@ -446,10 +440,7 @@ export function resolveTestEvent(
         value === Operator.BiggerThan
           ? Operator.BiggerThan
           : Operator.SmallerThan,
-      left: {
-        type: EventType.TokenExpression,
-        token: prevToken,
-      } as TokenExpression,
+      left,
       right:
         valueTokens.length === 1
           ? ({

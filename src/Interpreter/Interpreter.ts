@@ -120,10 +120,18 @@ export default class Interpreter {
         ...currentDictionaryExpression.body.entries(),
       ].find(([, {key}]) => key.value === resolvedKey.token.value);
 
-      if (dictionaryPairEntry == null)
-        throw new Error(
-          `Key on ${memberExpression.symbol.value} is undefined.`,
-        );
+      if (dictionaryPairEntry == null) {
+        if (type === 'get') {
+          throw new Error(
+            `Key ${resolvedKey.token.value} on ${memberExpression.symbol.value} is undefined.`,
+          );
+        }
+        currentDictionaryExpression.body.push({
+          key: resolvedKey.token as Token<TokenType.String>,
+          value: newValueEvent!,
+        });
+        return;
+      }
 
       const [dictionaryPairIndex, dictionaryPair] = dictionaryPairEntry;
 
@@ -152,17 +160,20 @@ export default class Interpreter {
       throw new Error('Test missing right side.');
     }
 
-    if (
-      event.left.type !== EventType.TokenExpression ||
-      event.right.type !== EventType.TokenExpression
-    ) {
+    const subInterpreter = new Interpreter(this.context);
+
+    const leftToken: Token | null =
+      event.left.type === EventType.TokenExpression
+        ? event.left.token
+        : resolveNonTokenExpression(event.left).token;
+    const rightToken: Token | null =
+      event.right.type === EventType.TokenExpression
+        ? event.right.token
+        : resolveNonTokenExpression(event.right).token;
+
+    if (leftToken === null || rightToken === null) {
       throw new Error('Tests can only be used with tokens.');
     }
-
-    const {
-      left: {token: leftToken},
-      right: {token: rightToken},
-    } = event;
 
     if (
       event.operator === Operator.Equals ||
@@ -214,6 +225,17 @@ export default class Interpreter {
               ? BooleanValue.True
               : BooleanValue.False,
         });
+    }
+
+    function resolveNonTokenExpression(event: Event) {
+      const result = subInterpreter.evaluate([event]);
+      if (result == null)
+        throw new Error('Could not resolve member expression left hand.');
+      if (result.type !== EventType.TokenExpression)
+        throw new Error(
+          `Can’t use ${result.type} as member expression left hand.`,
+        );
+      return result;
     }
   }
 

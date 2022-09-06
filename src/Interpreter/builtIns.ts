@@ -19,6 +19,18 @@ const buildIns: {
     console.log(
       ...expressions.map((expression) => {
         if (expression == null) return null;
+
+        if (expression.type === EventType.DictionaryExpression) {
+          return (
+            expression.body.reduce(
+              (current, {key, value}) =>
+                current +
+                `  "${key.value}": "${(value as any).token.value}",\n`,
+              '{\n',
+            ) + '}'
+          );
+        }
+
         const {value} = Interpreter.toSingleToken(expression);
         return value;
       }),
